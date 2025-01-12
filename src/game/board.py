@@ -122,3 +122,29 @@ class GameBoard:
             if 0 <= nr < len(board) and 0 <= nc < len(board[0]) and board[nr][nc]["type"] != 0:
                 moves.append((nr, nc))
         return moves
+
+    def make_move(self, player, board_type, target_row, target_col):
+        """
+        Make a move on the game board.
+
+        This method updates the game board based on the player's move.
+        It handles moving a piece from one position to another.
+
+        Args:
+            player (str): The player making the move ('player1' or 'player2').
+            board_type (str): The type of board the move is being made on ('center', 'left', or 'right').
+            target_row (int): The target row position for the move.
+            target_col (int): The target column position for the move.
+        """
+        if board_type == "center_board":
+            print(f"Player {player} moved to center board: ({
+                  target_row}, {target_col})")
+            self.center_board[target_row][target_col]["piece"] = player
+        elif board_type == "left_wing":
+            print(f"Player {player} moved to left wing: ({
+                  target_row}, {target_col})")
+            self.left_wing[target_row][target_col]["piece"] = player
+        elif board_type == "right_wing":
+            print(f"Player {player} moved to right wing: ({
+                  target_row}, {target_col})")
+            self.right_wing[target_row][target_col]["piece"] = player

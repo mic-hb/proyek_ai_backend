@@ -1,5 +1,6 @@
 """ API for the game server. """
 
+from flask_cors import CORS
 from flask import Flask, jsonify, request
 from flask_socketio import SocketIO, emit
 from src.game.board import GameBoard
@@ -7,6 +8,9 @@ from src.game.board import GameBoard
 # Initialize Flask and Flask-SocketIO
 app = Flask(__name__)
 socketio = SocketIO(app)
+
+CORS(app, resources={r"/*": {"origins": "*"}})
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Initialize the game
 game = GameBoard()
@@ -55,12 +59,14 @@ def handle_connect():
 
 
 @socketio.on('make_move')
-def handle_make_move(data):
+def handle_make_move(data: dict):
     """
     Handle the player's move via WebSocket and broadcast the new game state.
     """
     print(f"Move received: {data}")
     # Process the move (update the game state)
+    game.make_move(data['player'], data['board_type'],
+                   data['row'], data['col'])
 
     # Recalculate valid moves and emit back the new state
     game.calculate_valid_moves()
