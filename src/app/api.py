@@ -82,6 +82,7 @@ def handle_make_move(data: dict):
     game.make_move(data['player'], data['board_type'],
                    data['row'], data['col'])
 
+    print(game.format_board())
     # Recalculate valid moves and emit back the new state
     # game.calculate_valid_moves()
     emit('game_state', game.to_json())

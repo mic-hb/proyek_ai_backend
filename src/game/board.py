@@ -80,20 +80,20 @@ class GameBoard:
     right_wing: Board
 
     def __init__(self):
-        default_cell = Cell(piece=Pieces.BLANK,
-                            valid_moves=[],  type=CellTypes.ALL_DIRECTIONS)
-
         # Define the center board
         self.center_board = [
-            [default_cell for _ in range(5)] for _ in range(5)
+            [Cell(piece=Pieces.BLANK,
+                  valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for _ in range(5)] for _ in range(5)
         ]
 
         # Define the left and right wings
         self.left_wing = [
-            [default_cell for _ in range(2)] for _ in range(5)
+            [Cell(piece=Pieces.BLANK,
+                  valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for _ in range(2)] for _ in range(5)
         ]
         self.right_wing = [
-            [default_cell for _ in range(2)] for _ in range(5)
+            [Cell(piece=Pieces.BLANK,
+                  valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for _ in range(2)] for _ in range(5)
         ]
 
         # Mark invalid spaces (X)
@@ -187,6 +187,8 @@ class GameBoard:
             print(f"Player {player} moved to center board: ({
                   target_row}, {target_col})")
             self.center_board[target_row][target_col].piece = player
+            print(self.center_board[target_row][target_col].piece)
+            print(self.center_board[0][0].piece)
         elif board_type == "left_wing":
             print(f"Player {player} moved to left wing: ({
                   target_row}, {target_col})")
