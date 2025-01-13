@@ -10,6 +10,7 @@ from dataclasses_json import dataclass_json
 
 class Pieces(IntEnum):
     """An enumeration representing the player types."""
+    INVALID = 9
     BLANK = 0
     UWONG = 1
     MACAN = 2
@@ -17,7 +18,7 @@ class Pieces(IntEnum):
 
 class CellTypes(IntEnum):
     """An enumeration representing the cell types."""
-    NONE = 0
+    INVALID = 0
     ALL_DIRECTIONS = 8
     FOUR_DIRECTIONS = 4
     SPECIAL = 3
@@ -31,7 +32,7 @@ PossibleMoves: TypeAlias = List[tuple[int, int, str]]
 class Cell:
     """A dataclass representing a cell on the game board."""
     piece: Pieces = field(default=Pieces.BLANK)
-    type: CellTypes = field(default=CellTypes.NONE)
+    type: CellTypes = field(default=CellTypes.INVALID)
     valid_moves: list[tuple[int, int, str]] = field(default_factory=list)
 
 
@@ -44,7 +45,7 @@ Board: TypeAlias = list[list[Cell]]
 
 
 @dataclass_json
-@dataclass
+@dataclass(order=True)
 class GameBoard:
     """
     A class to represent the game board.
@@ -89,22 +90,18 @@ class GameBoard:
 
         # Define the left and right wings
         self.left_wing = [
-            [default_cell if i == 1 else Cell(
-                piece=Pieces.BLANK,  valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for i in range(2)]
-            for _ in range(5)
+            [default_cell for _ in range(2)] for _ in range(5)
         ]
         self.right_wing = [
-            [default_cell if i == 1 else Cell(
-                piece=Pieces.BLANK,  valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for i in range(2)]
-            for _ in range(5)
+            [default_cell for _ in range(2)] for _ in range(5)
         ]
 
         # Mark invalid spaces (X)
         for i in [0, 4]:
             self.left_wing[i] = [
-                Cell(piece=Pieces.BLANK,  valid_moves=[],  type=CellTypes.NONE) for _ in range(2)]
+                Cell(piece=Pieces.INVALID,  valid_moves=[],  type=CellTypes.INVALID) for _ in range(2)]
             self.right_wing[i] = [
-                Cell(piece=Pieces.BLANK,  valid_moves=[],  type=CellTypes.NONE) for _ in range(2)]
+                Cell(piece=Pieces.INVALID,  valid_moves=[],  type=CellTypes.INVALID) for _ in range(2)]
 
         # Add valid_moves manually for type 3 spaces
         # Special space to move to left wing
@@ -208,3 +205,29 @@ class GameBoard:
             'left_wing': self.left_wing,
             'right_wing': self.right_wing
         })
+
+    def format_board(self) -> str:
+        """Format the game board for display."""
+        center_board: list[list[Pieces]] = [[cell.piece for cell in row]
+                                            for row in self.center_board]
+        left_wing: list[list[Pieces]] = [[cell.piece for cell in row]
+                                         for row in self.left_wing]
+        right_wing: list[list[Pieces]] = [[cell.piece for cell in row]
+                                          for row in self.right_wing]
+
+        formatted_board = ""
+        for y in [0, 1, 2, 3, 4]:
+            for x in [0, 1, 2, 3, 4, 5, 6, 7, 8]:
+                if x < 1:
+                    formatted_board += f"{left_wing[y][x]}, "
+                elif x < 2:
+                    formatted_board += f"{left_wing[y][x]} | "
+                elif x < 6:
+                    formatted_board += f"{center_board[y][x-2]}, "
+                elif x < 7:
+                    formatted_board += f"{center_board[y][x-2]} | "
+                else:
+                    formatted_board += f"{right_wing[y][x-7]}, "
+            formatted_board += "\n"
+
+        return formatted_board

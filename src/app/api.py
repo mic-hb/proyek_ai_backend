@@ -36,27 +36,7 @@ def get_game_board() -> Board:
     """
     Fetch the current game board.
     """
-    center_board: list[list[Pieces]] = [[cell.piece for cell in row]
-                                        for row in game.center_board]
-    left_wing: list[list[Pieces]] = [[cell.piece for cell in row]
-                                     for row in game.left_wing]
-    right_wing: list[list[Pieces]] = [[cell.piece for cell in row]
-                                      for row in game.right_wing]
-
-    formatted_board = ""
-    for y in [0, 1, 2, 3, 4]:
-        for x in [0, 1, 2, 3, 4, 5, 6, 7, 8]:
-            if x < 1:
-                formatted_board += f"{left_wing[y][x]}, "
-            elif x < 2:
-                formatted_board += f"{center_board[y][x]} | "
-            elif x < 6:
-                formatted_board += f"{center_board[y][x-2]}, "
-            elif x < 7:
-                formatted_board += f"{center_board[y][x-2]} | "
-            else:
-                formatted_board += f"{right_wing[y][x-7]}, "
-        formatted_board += "\n"
+    formatted_board = game.format_board()
 
     return formatted_board  # type: ignore
 
