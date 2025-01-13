@@ -1,19 +1,21 @@
 """ This module contains the GameBoard class representing the game board. """
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import dataclass, field, asdict
+from enum import Enum, IntEnum
+from typing import Dict, List, TypeAlias, Union
 
-from typing import List, Dict, Union, TypeAlias
-from enum import Enum
+from dataclasses_json import dataclass_json
 
 
-class Pieces(Enum):
+class Pieces(IntEnum):
     """An enumeration representing the player types."""
     BLANK = 0
     UWONG = 1
     MACAN = 2
 
 
-class CellTypes(Enum):
+class CellTypes(IntEnum):
     """An enumeration representing the cell types."""
     NONE = 0
     ALL_DIRECTIONS = 8
@@ -24,20 +26,25 @@ class CellTypes(Enum):
 PossibleMoves: TypeAlias = List[tuple[int, int, str]]
 
 
+@dataclass_json
 @dataclass
 class Cell:
     """A dataclass representing a cell on the game board."""
-    piece: Pieces
-    type: CellTypes
-    valid_moves: list[str] = field(default_factory=list)
+    piece: Pieces = field(default=Pieces.BLANK)
+    type: CellTypes = field(default=CellTypes.NONE)
+    valid_moves: list[tuple[int, int, str]] = field(default_factory=list)
 
 
+# @dataclass_json
+# @dataclass
+# class Board:
+#     """A dataclass representing a board on the game board."""
+#     board: list[list[Cell]]
+Board: TypeAlias = list[list[Cell]]
+
+
+@dataclass_json
 @dataclass
-class Board:
-    """A dataclass representing a board on the game board."""
-    board: list[list[Cell]]
-
-
 class GameBoard:
     """
     A class to represent the game board.
@@ -67,9 +74,9 @@ class GameBoard:
     __init__():
         Initializes the game board with center, left wing, and right wing grids. Marks invalid spaces and sets special spaces.
     """
-    center_board: list[list[Cell]]
-    left_wing: list[list[Cell]]
-    right_wing: list[list[Cell]]
+    center_board: Board
+    left_wing: Board
+    right_wing: Board
 
     def __init__(self):
         default_cell = Cell(piece=Pieces.BLANK,
@@ -134,16 +141,16 @@ class GameBoard:
         # Center board valid moves
         for row in range(5):
             for col in range(5):
-                if self.center_board[row][col]["type"] == 1:
-                    self.center_board[row][col]["valid_moves"] = self.get_moves(
+                if self.center_board[row][col].type == 1:
+                    self.center_board[row][col].valid_moves = self.get_moves(
                         row, col, directions_8, self.center_board)
-                elif self.center_board[row][col]["type"] == 2:
-                    self.center_board[row][col]["valid_moves"] = self.get_moves(
+                elif self.center_board[row][col].type == 2:
+                    self.center_board[row][col].valid_moves = self.get_moves(
                         row, col, directions_4, self.center_board)
 
         # Special moves for wings
-        self.center_board[2][0]["valid_moves"] = [(2, 1, "left")]
-        self.center_board[2][4]["valid_moves"] = [(2, 1, "right")]
+        self.center_board[2][0].valid_moves = [(2, 1, "left")]
+        self.center_board[2][4].valid_moves = [(2, 1, "right")]
 
     def get_moves(self, row, col, directions, board):
         """
@@ -166,7 +173,7 @@ class GameBoard:
                 moves.append((nr, nc))
         return moves
 
-    def make_move(self, player, board_type, target_row, target_col):
+    def make_move(self, player, board_type, target_row: int, target_col: int):
         """
         Make a move on the game board.
 
@@ -182,12 +189,22 @@ class GameBoard:
         if board_type == "center_board":
             print(f"Player {player} moved to center board: ({
                   target_row}, {target_col})")
-            self.center_board[target_row][target_col]["piece"] = player
+            self.center_board[target_row][target_col].piece = player
         elif board_type == "left_wing":
             print(f"Player {player} moved to left wing: ({
                   target_row}, {target_col})")
-            self.left_wing[target_row][target_col]["piece"] = player
+            self.left_wing[target_row][target_col].piece = player
         elif board_type == "right_wing":
             print(f"Player {player} moved to right wing: ({
                   target_row}, {target_col})")
-            self.right_wing[target_row][target_col]["piece"] = player
+            self.right_wing[target_row][target_col].piece = player
+
+    def to_json(self) -> str:
+        """Convert the game state to a JSON string."""
+        # Implement the logic to convert the game state to JSON
+
+        return json.dumps({
+            'center_board': self.center_board,
+            'left_wing': self.left_wing,
+            'right_wing': self.right_wing
+        })

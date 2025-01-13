@@ -1,9 +1,12 @@
 """ API for the game server. """
 
-from flask_cors import CORS
+import json
+
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from flask_socketio import SocketIO, emit
-from src.game.board import GameBoard
+
+from src.game.board import Board, GameBoard, Pieces
 
 # Initialize Flask and Flask-SocketIO
 app = Flask(__name__)
@@ -17,16 +20,45 @@ game = GameBoard()
 
 
 @app.route('/game/state', methods=['GET'])
-def get_game_state():
+def get_game_state() -> dict[str, Board]:
     """
     Fetch the current game state including the board and valid moves.
     """
     game.calculate_valid_moves()
-    return jsonify({
-        'center_board': game.center_board,
-        'left_wing': game.left_wing,
-        'right_wing': game.right_wing
-    })
+
+    game_state_json: str = game.to_json()
+    game_state_dict: dict[str, Board] = json.loads(game_state_json)
+    return game_state_dict
+
+
+@app.route('/game/board', methods=['GET'])
+def get_game_board() -> Board:
+    """
+    Fetch the current game board.
+    """
+    center_board: list[list[Pieces]] = [[cell.piece for cell in row]
+                                        for row in game.center_board]
+    left_wing: list[list[Pieces]] = [[cell.piece for cell in row]
+                                     for row in game.left_wing]
+    right_wing: list[list[Pieces]] = [[cell.piece for cell in row]
+                                      for row in game.right_wing]
+
+    formatted_board = ""
+    for y in [0, 1, 2, 3, 4]:
+        for x in [0, 1, 2, 3, 4, 5, 6, 7, 8]:
+            if x < 1:
+                formatted_board += f"{left_wing[y][x]}, "
+            elif x < 2:
+                formatted_board += f"{center_board[y][x]} | "
+            elif x < 6:
+                formatted_board += f"{center_board[y][x-2]}, "
+            elif x < 7:
+                formatted_board += f"{center_board[y][x-2]} | "
+            else:
+                formatted_board += f"{right_wing[y][x-7]}, "
+        formatted_board += "\n"
+
+    return formatted_board  # type: ignore
 
 
 @app.route('/game/move', methods=['POST'])
@@ -54,8 +86,10 @@ def handle_connect():
     Handle new WebSocket connections. Send the initial game state.
     """
     print("Client connected")
-    emit('game_state', {'center_board': game.center_board,
-         'left_wing': game.left_wing, 'right_wing': game.right_wing})
+    # print(f"game: {game}")
+    # emit('game_state', {'center_board': game.center_board,
+    #      'left_wing': game.left_wing, 'right_wing': game.right_wing})
+    emit('game_state', game.to_json())
 
 
 @socketio.on('make_move')
@@ -69,9 +103,8 @@ def handle_make_move(data: dict):
                    data['row'], data['col'])
 
     # Recalculate valid moves and emit back the new state
-    game.calculate_valid_moves()
-    emit('game_state', {'center_board': game.center_board,
-         'left_wing': game.left_wing, 'right_wing': game.right_wing})
+    # game.calculate_valid_moves()
+    emit('game_state', game.to_json())
 
 
 if __name__ == '__main__':
