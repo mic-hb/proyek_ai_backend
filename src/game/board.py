@@ -1,5 +1,42 @@
 """ This module contains the GameBoard class representing the game board. """
 
+from dataclasses import dataclass, field
+
+from typing import List, Dict, Union, TypeAlias
+from enum import Enum
+
+
+class Pieces(Enum):
+    """An enumeration representing the player types."""
+    BLANK = 0
+    UWONG = 1
+    MACAN = 2
+
+
+class CellTypes(Enum):
+    """An enumeration representing the cell types."""
+    NONE = 0
+    ALL_DIRECTIONS = 8
+    FOUR_DIRECTIONS = 4
+    SPECIAL = 3
+
+
+PossibleMoves: TypeAlias = List[tuple[int, int, str]]
+
+
+@dataclass
+class Cell:
+    """A dataclass representing a cell on the game board."""
+    piece: Pieces
+    type: CellTypes
+    valid_moves: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Board:
+    """A dataclass representing a board on the game board."""
+    board: list[list[Cell]]
+
 
 class GameBoard:
     """
@@ -30,37 +67,43 @@ class GameBoard:
     __init__():
         Initializes the game board with center, left wing, and right wing grids. Marks invalid spaces and sets special spaces.
     """
+    center_board: list[list[Cell]]
+    left_wing: list[list[Cell]]
+    right_wing: list[list[Cell]]
 
     def __init__(self):
+        default_cell = Cell(piece=Pieces.BLANK,
+                            valid_moves=[],  type=CellTypes.ALL_DIRECTIONS)
+
         # Define the center board
         self.center_board = [
-            [{"piece": 0, "valid_moves": [], "type": 1} for _ in range(5)] for _ in range(5)
+            [default_cell for _ in range(5)] for _ in range(5)
         ]
 
         # Define the left and right wings
         self.left_wing = [
-            [{"piece": 0, "valid_moves": [], "type": 1} if i == 1 else {
-                "piece": 0, "valid_moves": [], "type": 0} for i in range(2)]
+            [default_cell if i == 1 else Cell(
+                piece=Pieces.BLANK,  valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for i in range(2)]
             for _ in range(5)
         ]
         self.right_wing = [
-            [{"piece": 0, "valid_moves": [], "type": 1} if i == 1 else {
-                "piece": 0, "valid_moves": [], "type": 0} for i in range(2)]
+            [default_cell if i == 1 else Cell(
+                piece=Pieces.BLANK,  valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for i in range(2)]
             for _ in range(5)
         ]
 
         # Mark invalid spaces (X)
         for i in [0, 4]:
             self.left_wing[i] = [
-                {"piece": 0, "valid_moves": [], "type": 0} for _ in range(2)]
+                Cell(piece=Pieces.BLANK,  valid_moves=[],  type=CellTypes.NONE) for _ in range(2)]
             self.right_wing[i] = [
-                {"piece": 0, "valid_moves": [], "type": 0} for _ in range(2)]
+                Cell(piece=Pieces.BLANK,  valid_moves=[],  type=CellTypes.NONE) for _ in range(2)]
 
         # Add valid_moves manually for type 3 spaces
         # Special space to move to left wing
-        self.center_board[2][0]["type"] = 3
+        self.center_board[2][0].type = CellTypes.SPECIAL
         # Special space to move to right wing
-        self.center_board[2][4]["type"] = 3
+        self.center_board[2][4].type = CellTypes.SPECIAL
 
     def calculate_valid_moves(self):
         """
