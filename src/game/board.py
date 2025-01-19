@@ -12,8 +12,8 @@ class Pieces(IntEnum):
     """An enumeration representing the player types."""
     INVALID = 9
     BLANK = 0
-    UWONG = 1
-    MACAN = 2
+    MACAN = 1
+    UWONG = 2
 
 
 class CellTypes(IntEnum):
@@ -187,8 +187,6 @@ class GameBoard:
             print(f"Player {player} moved to center board: ({
                   target_row}, {target_col})")
             self.center_board[target_row][target_col].piece = player
-            print(self.center_board[target_row][target_col].piece)
-            print(self.center_board[0][0].piece)
         elif board_type == "left_wing":
             print(f"Player {player} moved to left wing: ({
                   target_row}, {target_col})")
@@ -233,3 +231,7 @@ class GameBoard:
             formatted_board += "\n"
 
         return formatted_board
+
+    def reset(self):
+        """Reset the game board to its initial state."""
+        self.__init__()

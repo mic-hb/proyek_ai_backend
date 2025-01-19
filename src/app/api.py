@@ -6,17 +6,18 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 
-from src.game.board import Board, GameBoard, Pieces
+from src.game.board import Board, Pieces, GameBoard
+from src.game.player import Player
 
 # Initialize Flask and Flask-SocketIO
 app = Flask(__name__)
-socketio = SocketIO(app)
 
 CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Initialize the game
-game = GameBoard()
+board_state = GameBoard()
+players: tuple[Player, Player] = (Player(), Player())
 
 
 @app.route('/game/state', methods=['GET'])
@@ -24,9 +25,9 @@ def get_game_state() -> dict[str, Board]:
     """
     Fetch the current game state including the board and valid moves.
     """
-    game.calculate_valid_moves()
+    board_state.calculate_valid_moves()
 
-    game_state_json: str = game.to_json()
+    game_state_json: str = board_state.to_json()
     game_state_dict: dict[str, Board] = json.loads(game_state_json)
     return game_state_dict
 
@@ -36,7 +37,7 @@ def get_game_board() -> Board:
     """
     Fetch the current game board.
     """
-    formatted_board = game.format_board()
+    formatted_board = board_state.format_board()
 
     return formatted_board  # type: ignore
 
@@ -55,21 +56,46 @@ def make_move():
 
     # You can call a method in your GameBoard class to handle the move logic
 
-    game.calculate_valid_moves()  # Recalculate valid moves after the move
+    board_state.calculate_valid_moves()  # Recalculate valid moves after the move
     return jsonify({'message': 'Move applied successfully!'})
 
 
+@app.route('/game/reset', methods=['POST'])
+def reset_game():
+    """
+    Reset the game to its initial state.
+    """
+    board_state.reset()
+
+    game_state_json: str = board_state.to_json()
+    game_state_dict: dict[str, Board] = json.loads(game_state_json)
+    socketio.emit('game_state', json.dumps(game_state_dict))
+
+    return jsonify({'message': 'Game reset successfully!'})
+
 # WebSocket for real-time updates
+
+
 @socketio.on('connect')
-def handle_connect():
+def handle_connect(auth):
     """
     Handle new WebSocket connections. Send the initial game state.
     """
-    print("Client connected")
-    # print(f"game: {game}")
-    # emit('game_state', {'center_board': game.center_board,
-    #      'left_wing': game.left_wing, 'right_wing': game.right_wing})
-    emit('game_state', game.to_json())
+    print(f"Client connected, {auth}")
+
+    board_state_json: str = board_state.to_json()
+    board_state_dict: dict[str, Board] = json.loads(board_state_json)
+
+    players_json = json.dumps(obj=[player.to_json() for player in players])
+    players_dict: list[dict[str, str | Pieces | int]
+                       ] = json.loads(players_json)
+
+    game_state = {
+        'players': players_dict,
+        'board_state': board_state_dict
+    }
+
+    emit('game_state', json.dumps(game_state))
 
 
 @socketio.on('make_move')
@@ -79,13 +105,25 @@ def handle_make_move(data: dict):
     """
     print(f"Move received: {data}")
     # Process the move (update the game state)
-    game.make_move(data['player'], data['board_type'],
-                   data['row'], data['col'])
+    board_state.make_move(data['player'], data['board_type'],
+                          data['row'], data['col'])
 
-    print(game.format_board())
     # Recalculate valid moves and emit back the new state
     # game.calculate_valid_moves()
-    emit('game_state', game.to_json())
+
+    board_state_json: str = board_state.to_json()
+    board_state_dict: dict[str, Board] = json.loads(board_state_json)
+
+    players_json = json.dumps(obj=[player.to_json() for player in players])
+    players_dict: list[dict[str, str | Pieces | int]
+                       ] = json.loads(players_json)
+
+    game_state = {
+        'players': players_dict,
+        'board_state': board_state_dict
+    }
+
+    emit('game_state', json.dumps(game_state))
 
 
 if __name__ == '__main__':
