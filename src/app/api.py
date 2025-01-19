@@ -13,11 +13,11 @@ from src.game.player import Player
 app = Flask(__name__)
 
 CORS(app, resources={r"/*": {"origins": "*"}})
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app=app, cors_allowed_origins="*", logger=True)
 
 # Initialize the game
 board_state = GameBoard()
-players: tuple[Player, Player] = (Player(), Player())
+players: list[Player] = [Player(), Player()]
 
 
 @app.route('/game/state', methods=['GET'])
@@ -27,9 +27,19 @@ def get_game_state() -> dict[str, Board]:
     """
     board_state.calculate_valid_moves()
 
-    game_state_json: str = board_state.to_json()
-    game_state_dict: dict[str, Board] = json.loads(game_state_json)
-    return game_state_dict
+    board_state_json: str = board_state.to_json()
+    board_state_dict: dict[str, Board] = json.loads(board_state_json)
+
+    players_json = json.dumps(obj=[player.to_json() for player in players])
+    players_dict: list[dict[str, str | Pieces | int]
+                       ] = json.loads(players_json)
+
+    game_state = {
+        'players': players_dict,
+        'board_state': board_state_dict
+    }
+
+    return game_state
 
 
 @app.route('/game/board', methods=['GET'])
@@ -83,6 +93,16 @@ def handle_connect(auth):
     """
     print(f"Client connected, {auth}")
 
+    current_player = ''
+    if players[0].name == "":
+        current_player = 'player1'
+        players[0].name = current_player
+    elif players[1].name == "":
+        current_player = 'player2'
+        players[1].name = current_player
+    else:
+        emit('game_full', json.dumps({'message': 'Game is full!'}))
+
     board_state_json: str = board_state.to_json()
     board_state_dict: dict[str, Board] = json.loads(board_state_json)
 
@@ -91,11 +111,12 @@ def handle_connect(auth):
                        ] = json.loads(players_json)
 
     game_state = {
+        'you_are': current_player,
         'players': players_dict,
         'board_state': board_state_dict
     }
 
-    emit('game_state', json.dumps(game_state))
+    emit('init_game', json.dumps(game_state))
 
 
 @socketio.on('make_move')
@@ -123,7 +144,45 @@ def handle_make_move(data: dict):
         'board_state': board_state_dict
     }
 
-    emit('game_state', json.dumps(game_state))
+    emit('game_state', json.dumps(game_state), broadcast=True)
+
+
+@socketio.on('send_player_data')
+def update_player_data(data: dict):
+    """
+    Update the player data.
+    """
+    print(f"Player data received: {data}")
+    current_player = data['name']
+
+    for player in players:
+        if player.name == current_player:
+            player.piece = data['piece']
+            player.score = data['score']
+
+    board_state_json: str = board_state.to_json()
+    board_state_dict: dict[str, Board] = json.loads(board_state_json)
+
+    players_json = json.dumps(obj=[player.to_json() for player in players])
+    players_dict: list[dict[str, str | Pieces | int]
+                       ] = json.loads(players_json)
+
+    game_state = {
+        'players': players_dict
+    }
+
+    emit('player_state', json.dumps(game_state), broadcast=True)
+
+
+@socketio.on('disconnect')
+def handle_disconnect(reason):
+    """
+    Handle WebSocket disconnections.
+    """
+    print(f'Client disconnected, reason: {reason}')
+
+    players[0] = Player()
+    players[1] = Player()
 
 
 if __name__ == '__main__':
