@@ -91,17 +91,7 @@ def handle_connect():
     """
     Handle new WebSocket connections. Send the initial game state.
     """
-    print("Client connected")
-
-    current_player = ''
-    if players[0].name == "":
-        current_player = 'player1'
-        players[0].name = current_player
-    elif players[1].name == "":
-        current_player = 'player2'
-        players[1].name = current_player
-    else:
-        emit('game_full', json.dumps({'message': 'Game is full!'}))
+    print(f"Client connected, sid: {request.sid}")  # type: ignore
 
     board_state_json: str = board_state.to_json()
     board_state_dict: dict[str, Board] = json.loads(board_state_json)
@@ -110,8 +100,12 @@ def handle_connect():
     players_dict: list[dict[str, str | PieceTypes | int]
                        ] = json.loads(players_json)
 
+    print(f"Players: {players_dict}")
+
     game_state = {
-        'you_are': current_player,
+        'you_are': {
+            'sid': request.sid  # type: ignore
+        },
         'players': players_dict,
         'board_state': board_state_dict
     }
@@ -147,6 +141,37 @@ def handle_make_move(data: dict):
     emit('game_state', json.dumps(game_state), broadcast=True)
 
 
+@socketio.on('send_initial_player_data')
+def initial_player_data(data: dict):
+    """
+    Initialize the player data.
+    """
+    print(f"Player data received: {data}")
+    current_player_name = data['name']
+
+    if players[0].name == "":
+        players[0].name = current_player_name
+        players[0].sid = request.sid  # type: ignore
+    elif players[1].name == "":
+        players[1].name = current_player_name
+        players[1].sid = request.sid  # type: ignore
+    else:
+        emit('game_full', json.dumps({'message': 'Game is full!'}))
+
+    board_state_json: str = board_state.to_json()
+    board_state_dict: dict[str, Board] = json.loads(board_state_json)
+
+    players_json = json.dumps(obj=[player.to_json() for player in players])
+    players_dict: list[dict[str, str | PieceTypes | int]
+                       ] = json.loads(players_json)
+
+    game_state = {
+        'players': players_dict
+    }
+
+    emit('player_state', json.dumps(game_state), broadcast=True)
+
+
 @socketio.on('send_player_data')
 def update_player_data(data: dict):
     """
@@ -180,11 +205,11 @@ def handle_disconnect(reason):
     Handle WebSocket disconnections.
     """
     print(f'Client disconnected, reason: {reason}')
-    print(f'Player disconnected: {request.sid}')
-    # for player in players:
-    #     if player.name == request.sid:
-    #         player.name = ""
-    #         break
+    print(f'Player disconnected: {request.sid}')  # type: ignore
+    for player in players:
+        if player.sid == request.sid:  # type: ignore
+            player = Player()
+            break
 
     players[0] = Player()
     players[1] = Player()

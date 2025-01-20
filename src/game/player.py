@@ -25,7 +25,7 @@ class Player:
     """
 
     name: str = field(default="")
-    socket_id: str = field(default="")
+    sid: str = field(default="")
     piece_type: PieceTypes = field(default=PieceTypes.BLANK)
     score: int = field(default=0)
 
