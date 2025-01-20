@@ -6,7 +6,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 
-from src.game.board import Board, Pieces, GameBoard
+from src.game.board import Board, PieceTypes, GameBoard
 from src.game.player import Player
 
 # Initialize Flask and Flask-SocketIO
@@ -31,7 +31,7 @@ def get_game_state() -> dict[str, Board]:
     board_state_dict: dict[str, Board] = json.loads(board_state_json)
 
     players_json = json.dumps(obj=[player.to_json() for player in players])
-    players_dict: list[dict[str, str | Pieces | int]
+    players_dict: list[dict[str, str | PieceTypes | int]
                        ] = json.loads(players_json)
 
     game_state = {
@@ -87,11 +87,11 @@ def reset_game():
 
 
 @socketio.on('connect')
-def handle_connect(auth):
+def handle_connect():
     """
     Handle new WebSocket connections. Send the initial game state.
     """
-    print(f"Client connected, {auth}")
+    print("Client connected")
 
     current_player = ''
     if players[0].name == "":
@@ -107,7 +107,7 @@ def handle_connect(auth):
     board_state_dict: dict[str, Board] = json.loads(board_state_json)
 
     players_json = json.dumps(obj=[player.to_json() for player in players])
-    players_dict: list[dict[str, str | Pieces | int]
+    players_dict: list[dict[str, str | PieceTypes | int]
                        ] = json.loads(players_json)
 
     game_state = {
@@ -136,7 +136,7 @@ def handle_make_move(data: dict):
     board_state_dict: dict[str, Board] = json.loads(board_state_json)
 
     players_json = json.dumps(obj=[player.to_json() for player in players])
-    players_dict: list[dict[str, str | Pieces | int]
+    players_dict: list[dict[str, str | PieceTypes | int]
                        ] = json.loads(players_json)
 
     game_state = {
@@ -157,14 +157,14 @@ def update_player_data(data: dict):
 
     for player in players:
         if player.name == current_player:
-            player.piece = data['piece']
+            player.piece_type = data['pieceType']
             player.score = data['score']
 
     board_state_json: str = board_state.to_json()
     board_state_dict: dict[str, Board] = json.loads(board_state_json)
 
     players_json = json.dumps(obj=[player.to_json() for player in players])
-    players_dict: list[dict[str, str | Pieces | int]
+    players_dict: list[dict[str, str | PieceTypes | int]
                        ] = json.loads(players_json)
 
     game_state = {
@@ -180,6 +180,11 @@ def handle_disconnect(reason):
     Handle WebSocket disconnections.
     """
     print(f'Client disconnected, reason: {reason}')
+    print(f'Player disconnected: {request.sid}')
+    # for player in players:
+    #     if player.name == request.sid:
+    #         player.name = ""
+    #         break
 
     players[0] = Player()
     players[1] = Player()

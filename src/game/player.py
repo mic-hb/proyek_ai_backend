@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass, field, asdict
 from dataclasses_json import dataclass_json
-from src.game.board import Pieces
+from src.game.board import PieceTypes
 
 
 @dataclass_json
@@ -16,13 +16,17 @@ class Player:
     ----------
     name : str
         The name of the player.
+    socket_id : str
+        The socket ID of the player.
+    piece_types : PieceTypes
+        The piece type of the player.
     score : int
         The score of the player.
     """
 
     name: str = field(default="")
     socket_id: str = field(default="")
-    piece: Pieces = field(default=Pieces.BLANK)
+    piece_type: PieceTypes = field(default=PieceTypes.BLANK)
     score: int = field(default=0)
 
     # def __init__(self):

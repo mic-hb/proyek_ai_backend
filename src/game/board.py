@@ -8,7 +8,7 @@ from typing import Dict, List, TypeAlias, Union
 from dataclasses_json import dataclass_json
 
 
-class Pieces(IntEnum):
+class PieceTypes(IntEnum):
     """An enumeration representing the player types."""
     INVALID = 9
     BLANK = 0
@@ -31,7 +31,7 @@ PossibleMoves: TypeAlias = List[tuple[int, int, str]]
 @dataclass
 class Cell:
     """A dataclass representing a cell on the game board."""
-    piece: Pieces = field(default=Pieces.BLANK)
+    piece_type: PieceTypes = field(default=PieceTypes.BLANK)
     type: CellTypes = field(default=CellTypes.INVALID)
     valid_moves: list[tuple[int, int, str]] = field(default_factory=list)
 
@@ -82,26 +82,26 @@ class GameBoard:
     def __init__(self):
         # Define the center board
         self.center_board = [
-            [Cell(piece=Pieces.BLANK,
+            [Cell(piece_type=PieceTypes.BLANK,
                   valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for _ in range(5)] for _ in range(5)
         ]
 
         # Define the left and right wings
         self.left_wing = [
-            [Cell(piece=Pieces.BLANK,
+            [Cell(piece_type=PieceTypes.BLANK,
                   valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for _ in range(2)] for _ in range(5)
         ]
         self.right_wing = [
-            [Cell(piece=Pieces.BLANK,
+            [Cell(piece_type=PieceTypes.BLANK,
                   valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for _ in range(2)] for _ in range(5)
         ]
 
         # Mark invalid spaces (X)
         for i in [0, 4]:
             self.left_wing[i] = [
-                Cell(piece=Pieces.INVALID,  valid_moves=[],  type=CellTypes.INVALID) for _ in range(2)]
+                Cell(piece_type=PieceTypes.INVALID,  valid_moves=[],  type=CellTypes.INVALID) for _ in range(2)]
             self.right_wing[i] = [
-                Cell(piece=Pieces.INVALID,  valid_moves=[],  type=CellTypes.INVALID) for _ in range(2)]
+                Cell(piece_type=PieceTypes.INVALID,  valid_moves=[],  type=CellTypes.INVALID) for _ in range(2)]
 
         # Add valid_moves manually for type 3 spaces
         # Special space to move to left wing
@@ -170,7 +170,7 @@ class GameBoard:
                 moves.append((nr, nc))
         return moves
 
-    def make_move(self, player, board_type, target_row: int, target_col: int):
+    def make_move(self, player_piece_type, board_type, target_row: int, target_col: int):
         """
         Make a move on the game board.
 
@@ -184,17 +184,17 @@ class GameBoard:
             target_col (int): The target column position for the move.
         """
         if board_type == "center_board":
-            print(f"Player {player} moved to center board: ({
+            print(f"Player {player_piece_type} moved to center board: ({
                   target_row}, {target_col})")
-            self.center_board[target_row][target_col].piece = player
+            self.center_board[target_row][target_col].piece_type = player_piece_type
         elif board_type == "left_wing":
-            print(f"Player {player} moved to left wing: ({
+            print(f"Player {player_piece_type} moved to left wing: ({
                   target_row}, {target_col})")
-            self.left_wing[target_row][target_col].piece = player
+            self.left_wing[target_row][target_col].piece_type = player_piece_type
         elif board_type == "right_wing":
-            print(f"Player {player} moved to right wing: ({
+            print(f"Player {player_piece_type} moved to right wing: ({
                   target_row}, {target_col})")
-            self.right_wing[target_row][target_col].piece = player
+            self.right_wing[target_row][target_col].piece_type = player_piece_type
 
     def to_json(self) -> str:
         """Convert the game state to a JSON string."""
@@ -208,12 +208,12 @@ class GameBoard:
 
     def format_board(self) -> str:
         """Format the game board for display."""
-        center_board: list[list[Pieces]] = [[cell.piece for cell in row]
-                                            for row in self.center_board]
-        left_wing: list[list[Pieces]] = [[cell.piece for cell in row]
-                                         for row in self.left_wing]
-        right_wing: list[list[Pieces]] = [[cell.piece for cell in row]
-                                          for row in self.right_wing]
+        center_board: list[list[PieceTypes]] = [[cell.piece_type for cell in row]
+                                                for row in self.center_board]
+        left_wing: list[list[PieceTypes]] = [[cell.piece_type for cell in row]
+                                             for row in self.left_wing]
+        right_wing: list[list[PieceTypes]] = [[cell.piece_type for cell in row]
+                                              for row in self.right_wing]
 
         formatted_board = ""
         for y in [0, 1, 2, 3, 4]:
