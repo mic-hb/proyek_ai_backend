@@ -165,6 +165,8 @@ def initial_player_data(data: dict):
     players_dict: list[dict[str, str | PieceTypes | int]
                        ] = json.loads(players_json)
 
+    print(f"Players: {players_dict}")
+
     game_state = {
         'players': players_dict
     }
@@ -206,13 +208,17 @@ def handle_disconnect(reason):
     """
     print(f'Client disconnected, reason: {reason}')
     print(f'Player disconnected: {request.sid}')  # type: ignore
+
+    print(f"Players: {players}")
+
     for player in players:
         if player.sid == request.sid:  # type: ignore
-            player = Player()
+            print(f"Player {player.name}, {player.sid} disconnected.")
+            player.name = ""
+            player.sid = ""
+            player.piece_type = PieceTypes.BLANK
+            player.score = 0
             break
-
-    players[0] = Player()
-    players[1] = Player()
 
 
 if __name__ == '__main__':
