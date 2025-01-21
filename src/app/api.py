@@ -120,6 +120,10 @@ def handle_make_move(data: dict):
     """
     print(f"Move received: {data}")
 
+    if board_state.turn != data['player_piece']['type']:
+        emit('invalid_move', 'Not your turn!')
+        return
+
     # Process the move (update the game state)
     board_state.make_move(data['player_name'], data['player_piece'],
                           data['row'], data['col'])
@@ -212,14 +216,21 @@ def handle_disconnect(reason):
 
     print(f"Players: {board_state.players}")
 
+    disconnected_players = 0
     for player in board_state.players:
+        if player.sid == "":
+            disconnected_players += 1
         if player.sid == request.sid:  # type: ignore
             print(f"Player {player.name}, {player.sid} disconnected.")
             player.name = ""
             player.sid = ""
             player.piece_type = PieceTypes.BLANK
             player.score = 0
+            disconnected_players += 1
             break
+
+    if disconnected_players == len(board_state.players):
+        board_state.reset()
 
     print(f"Players: {board_state.players}")
 

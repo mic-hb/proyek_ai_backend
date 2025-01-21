@@ -62,6 +62,7 @@ class GameBoard:
     """
     center_board: Board
     players: list[Player]
+    turn: PieceTypes = field(default=PieceTypes.MACAN)
 
     def __init__(self):
         # Define the center board
@@ -80,6 +81,7 @@ class GameBoard:
 
         # Initialize players
         self.players = [Player(), Player()]
+        self.turn = PieceTypes.MACAN
 
     def _initial_board(self, rows, columns) -> List[List[Cell]]:
         return [
@@ -177,6 +179,11 @@ class GameBoard:
         moved_piece.position.y = target_row
 
         self.recalculate_board()
+
+        if self.turn == PieceTypes.MACAN:
+            self.turn = PieceTypes.UWONG
+        else:
+            self.turn = PieceTypes.MACAN
 
         # if board_type == "center_board":
         #     print(f"Player {player_name} moved to center board: ({
