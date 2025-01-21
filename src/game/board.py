@@ -61,30 +61,22 @@ class GameBoard:
         Initializes the game board with center, left wing, and right wing grids. Marks invalid spaces and sets special spaces.
     """
     center_board: Board
-    left_wing: Board
-    right_wing: Board
     players: list[Player]
 
     def __init__(self):
         # Define the center board
-        self.center_board = self._initial_board(5, 5)
+        self.center_board = self._initial_board(5, 9)
 
-        # Define the left and right wings
-        self.left_wing = self._initial_board(5, 2)
-        self.right_wing = self._initial_board(5, 2)
-
-        # Mark invalid spaces (X)
+        # Mark invalid spaces (X) on the left and right wings
         for i in [0, 4]:
-            self.left_wing[i] = [
-                Cell(piece_type=PieceTypes.INVALID,  valid_moves=[],  type=CellTypes.INVALID) for _ in range(2)]
-            self.right_wing[i] = [
-                Cell(piece_type=PieceTypes.INVALID,  valid_moves=[],  type=CellTypes.INVALID) for _ in range(2)]
+            for j in [0, 1, 7, 8]:
+                self.center_board[i][j] = Cell(piece_type=PieceTypes.INVALID,  valid_moves=[],  type=CellTypes.INVALID)
 
         # Add valid_moves manually for type 3 spaces
         # Special space to move to left wing
-        self.center_board[2][0].type = CellTypes.SPECIAL
+        self.center_board[2][2].type = CellTypes.SPECIAL
         # Special space to move to right wing
-        self.center_board[2][4].type = CellTypes.SPECIAL
+        self.center_board[2][6].type = CellTypes.SPECIAL
 
         # Initialize players
         self.players = [Player(), Player()]
@@ -156,7 +148,7 @@ class GameBoard:
                 moves.append((nr, nc))
         return moves
 
-    def make_move(self, player_name: str, player_piece: dict, board_type, target_row: int, target_col: int):
+    def make_move(self, player_name: str, player_piece: dict, target_row: int, target_col: int):
         """
         Make a move on the game board.
 
@@ -205,18 +197,16 @@ class GameBoard:
 
         return json.dumps({
             'center_board': self.center_board,
-            'left_wing': self.left_wing,
-            'right_wing': self.right_wing
         })
 
     def format_board(self) -> str:
         """Format the game board for display."""
-        center_board: list[list[PieceTypes]] = [[cell.piece_type for cell in row]
+        center_board: list[list[PieceTypes]] = [[cell.piece_type for cell in row[2:7]]
                                                 for row in self.center_board]
-        left_wing: list[list[PieceTypes]] = [[cell.piece_type for cell in row]
-                                             for row in self.left_wing]
-        right_wing: list[list[PieceTypes]] = [[cell.piece_type for cell in row]
-                                              for row in self.right_wing]
+        left_wing: list[list[PieceTypes]] = [[cell.piece_type for cell in row[0:2]]
+                                             for row in self.center_board]
+        right_wing: list[list[PieceTypes]] = [[cell.piece_type for cell in row[7:9]]
+                                              for row in self.center_board]
 
         formatted_board = ""
         for y in [0, 1, 2, 3, 4]:
@@ -247,7 +237,10 @@ class GameBoard:
         return Player()
 
     def recalculate_board(self):
-        self.center_board = self._initial_board(5, 5)
+        for row in self.center_board:
+            for cell in row:
+                cell.piece_type = PieceTypes.BLANK
+
         for player in self.players:
             for piece in player.pieces:
                 if piece.position.x == -1 and piece.position.y == -1:
