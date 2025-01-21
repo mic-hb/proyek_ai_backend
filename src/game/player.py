@@ -67,7 +67,7 @@ class Player:
         Initialize the player's pieces.
         """
         pieces = []
-        for _ in range(2) if self.piece_type == PieceTypes.MACAN else range(8):
-            pieces.append(Piece(type=self.piece_type))
+        for index in range(2) if self.piece_type == PieceTypes.MACAN else range(8):
+            pieces.append(Piece(id=index+1, type=self.piece_type))
 
         self.pieces = pieces

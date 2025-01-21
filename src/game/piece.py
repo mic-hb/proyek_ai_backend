@@ -58,6 +58,7 @@ class Piece:
     Attributes
     ----------
     """
+    id: int = field(default=-1)
     position: PositionVector = field(default_factory=lambda: PositionVector(x=-1, y=-1))
     type: PieceTypes = field(default=PieceTypes.BLANK)
     valid_moves: list[PositionVector] = field(default_factory=list)

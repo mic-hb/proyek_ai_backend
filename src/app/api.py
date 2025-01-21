@@ -121,7 +121,7 @@ def handle_make_move(data: dict):
     print(f"Move received: {data}")
 
     # Process the move (update the game state)
-    board_state.make_move(data['player'], data['board_type'],
+    board_state.make_move(data['player_name'], data['player_piece'], data['board_type'],
                           data['row'], data['col'])
 
     # Recalculate valid moves and emit back the new state

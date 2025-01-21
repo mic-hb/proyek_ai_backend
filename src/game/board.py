@@ -8,6 +8,7 @@ from typing import Dict, List, TypeAlias, Union
 from dataclasses_json import dataclass_json
 
 from src.game.player import Player
+from src.game.piece import Piece
 from src.game.constants import PieceTypes, CellTypes
 
 
@@ -66,20 +67,11 @@ class GameBoard:
 
     def __init__(self):
         # Define the center board
-        self.center_board = [
-            [Cell(piece_type=PieceTypes.BLANK,
-                  valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for _ in range(5)] for _ in range(5)
-        ]
+        self.center_board = self._initial_board(5, 5)
 
         # Define the left and right wings
-        self.left_wing = [
-            [Cell(piece_type=PieceTypes.BLANK,
-                  valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for _ in range(2)] for _ in range(5)
-        ]
-        self.right_wing = [
-            [Cell(piece_type=PieceTypes.BLANK,
-                  valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for _ in range(2)] for _ in range(5)
-        ]
+        self.left_wing = self._initial_board(5, 2)
+        self.right_wing = self._initial_board(5, 2)
 
         # Mark invalid spaces (X)
         for i in [0, 4]:
@@ -96,6 +88,12 @@ class GameBoard:
 
         # Initialize players
         self.players = [Player(), Player()]
+
+    def _initial_board(self, rows, columns) -> List[List[Cell]]:
+        return [
+            [Cell(piece_type=PieceTypes.BLANK,
+                  valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for _ in range(columns)] for _ in range(rows)
+        ]
 
     def calculate_valid_moves(self):
         """
@@ -158,7 +156,7 @@ class GameBoard:
                 moves.append((nr, nc))
         return moves
 
-    def make_move(self, player_piece_type: PieceTypes, board_type, target_row: int, target_col: int):
+    def make_move(self, player_name: str, player_piece: dict, board_type, target_row: int, target_col: int):
         """
         Make a move on the game board.
 
@@ -172,21 +170,34 @@ class GameBoard:
             target_col (int): The target column position for the move.
         """
 
-        player: Player = self.get_player_by_piece_type(player_piece_type)
+        player: Player = self.get_player_by_name(player_name)
 
+        # Check which piece to move
+        moved_piece = None
+        print(f"Player {player.name}, pieces: {player.pieces}")
+        for piece in player.pieces:
+            if piece.id == player_piece['id']:
+                moved_piece = piece
 
-        if board_type == "center_board":
-            print(f"Player {player_piece_type} moved to center board: ({
-                  target_row}, {target_col})")
-            self.center_board[target_row][target_col].piece_type = player_piece_type
-        elif board_type == "left_wing":
-            print(f"Player {player_piece_type} moved to left wing: ({
-                  target_row}, {target_col})")
-            self.left_wing[target_row][target_col].piece_type = player_piece_type
-        elif board_type == "right_wing":
-            print(f"Player {player_piece_type} moved to right wing: ({
-                  target_row}, {target_col})")
-            self.right_wing[target_row][target_col].piece_type = player_piece_type
+        if moved_piece is None:
+            return
+        moved_piece.position.x = target_col
+        moved_piece.position.y = target_row
+
+        self.recalculate_board()
+
+        # if board_type == "center_board":
+        #     print(f"Player {player_name} moved to center board: ({
+        #           target_row}, {target_col})")
+        #     self.center_board[target_row][target_col].piece_type = player_piece['type']
+        # elif board_type == "left_wing":
+        #     print(f"Player {player_name} moved to left wing: ({
+        #           target_row}, {target_col})")
+        #     self.left_wing[target_row][target_col].piece_type = player_piece['type']
+        # elif board_type == "right_wing":
+        #     print(f"Player {player_name} moved to right wing: ({
+        #           target_row}, {target_col})")
+        #     self.right_wing[target_row][target_col].piece_type = player_piece['type']
 
     def to_json(self) -> str:
         """Convert the game state to a JSON string."""
@@ -228,9 +239,17 @@ class GameBoard:
         """Reset the game board to its initial state."""
         self.__init__()
 
-    def get_player_by_piece_type(self, player_piece_type) -> Player:
+    def get_player_by_name(self, player_name) -> Player:
         for player in self.players:
-            if player.piece_type == player_piece_type:
+            if player.name == player_name:
                 return player
 
         return Player()
+
+    def recalculate_board(self):
+        self.center_board = self._initial_board(5, 5)
+        for player in self.players:
+            for piece in player.pieces:
+                if piece.position.x == -1 and piece.position.y == -1:
+                    continue
+                self.center_board[piece.position.y][piece.position.x].piece_type = piece.type
