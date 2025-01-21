@@ -220,6 +220,17 @@ def handle_disconnect(reason):
             player.score = 0
             break
 
+    print(f"Players: {players}")
+
+    players_json = json.dumps(obj=[player.to_json() for player in players])
+    players_dict: list[dict[str, str | PieceTypes | int]
+                       ] = json.loads(players_json)
+
+    game_state = {
+        'players': players_dict
+    }
+
+    emit('player_state', json.dumps(game_state), broadcast=True)
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000)
