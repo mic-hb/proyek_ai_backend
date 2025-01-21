@@ -6,8 +6,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 
-from src.game.board import Board, PieceTypes, GameBoard
-from src.game.player import Player
+from src.game.board import Board, GameBoard
+from src.game.constants import PieceTypes
 
 # Initialize Flask and Flask-SocketIO
 app = Flask(__name__)
@@ -17,7 +17,7 @@ socketio = SocketIO(app=app, cors_allowed_origins="*", logger=True)
 
 # Initialize the game
 board_state = GameBoard()
-players: list[Player] = [Player(), Player()]
+# players: list[Player] = [Player(), Player()]
 
 
 @app.route('/game/state', methods=['GET'])
@@ -30,7 +30,7 @@ def get_game_state() -> dict[str, Board]:
     board_state_json: str = board_state.to_json()
     board_state_dict: dict[str, Board] = json.loads(board_state_json)
 
-    players_json = json.dumps(obj=[player.to_json() for player in players])
+    players_json = json.dumps(obj=[player.to_json() for player in board_state.players])
     players_dict: list[dict[str, str | PieceTypes | int]
                        ] = json.loads(players_json)
 
@@ -83,9 +83,9 @@ def reset_game():
 
     return jsonify({'message': 'Game reset successfully!'})
 
+
+
 # WebSocket for real-time updates
-
-
 @socketio.on('connect')
 def handle_connect():
     """
@@ -96,7 +96,7 @@ def handle_connect():
     board_state_json: str = board_state.to_json()
     board_state_dict: dict[str, Board] = json.loads(board_state_json)
 
-    players_json = json.dumps(obj=[player.to_json() for player in players])
+    players_json = json.dumps(obj=[player.to_json() for player in board_state.players])
     players_dict: list[dict[str, str | PieceTypes | int]
                        ] = json.loads(players_json)
 
@@ -119,6 +119,7 @@ def handle_make_move(data: dict):
     Handle the player's move via WebSocket and broadcast the new game state.
     """
     print(f"Move received: {data}")
+
     # Process the move (update the game state)
     board_state.make_move(data['player'], data['board_type'],
                           data['row'], data['col'])
@@ -129,7 +130,7 @@ def handle_make_move(data: dict):
     board_state_json: str = board_state.to_json()
     board_state_dict: dict[str, Board] = json.loads(board_state_json)
 
-    players_json = json.dumps(obj=[player.to_json() for player in players])
+    players_json = json.dumps(obj=[player.to_json() for player in board_state.players])
     players_dict: list[dict[str, str | PieceTypes | int]
                        ] = json.loads(players_json)
 
@@ -140,7 +141,6 @@ def handle_make_move(data: dict):
 
     emit('game_state', json.dumps(game_state), broadcast=True)
 
-
 @socketio.on('send_initial_player_data')
 def initial_player_data(data: dict):
     """
@@ -149,19 +149,19 @@ def initial_player_data(data: dict):
     print(f"Player data received: {data}")
     current_player_name = data['name']
 
-    if players[0].name == "":
-        players[0].name = current_player_name
-        players[0].sid = request.sid  # type: ignore
-    elif players[1].name == "":
-        players[1].name = current_player_name
-        players[1].sid = request.sid  # type: ignore
+    if board_state.players[0].name == "":
+        board_state.players[0].name = current_player_name
+        board_state.players[0].sid = request.sid  # type: ignore
+    elif board_state.players[1].name == "":
+        board_state.players[1].name = current_player_name
+        board_state.players[1].sid = request.sid  # type: ignore
     else:
         emit('game_full', json.dumps({'message': 'Game is full!'}))
 
     board_state_json: str = board_state.to_json()
     board_state_dict: dict[str, Board] = json.loads(board_state_json)
 
-    players_json = json.dumps(obj=[player.to_json() for player in players])
+    players_json = json.dumps(obj=[player.to_json() for player in board_state.players])
     players_dict: list[dict[str, str | PieceTypes | int]
                        ] = json.loads(players_json)
 
@@ -182,15 +182,17 @@ def update_player_data(data: dict):
     print(f"Player data received: {data}")
     current_player = data['name']
 
-    for player in players:
+    for player in board_state.players:
         if player.name == current_player:
             player.piece_type = data['pieceType']
             player.score = data['score']
+            player.initialize_pieces()
+
 
     board_state_json: str = board_state.to_json()
     board_state_dict: dict[str, Board] = json.loads(board_state_json)
 
-    players_json = json.dumps(obj=[player.to_json() for player in players])
+    players_json = json.dumps(obj=[player.to_json() for player in board_state.players])
     players_dict: list[dict[str, str | PieceTypes | int]
                        ] = json.loads(players_json)
 
@@ -200,7 +202,6 @@ def update_player_data(data: dict):
 
     emit('player_state', json.dumps(game_state), broadcast=True)
 
-
 @socketio.on('disconnect')
 def handle_disconnect(reason):
     """
@@ -209,9 +210,9 @@ def handle_disconnect(reason):
     print(f'Client disconnected, reason: {reason}')
     print(f'Player disconnected: {request.sid}')  # type: ignore
 
-    print(f"Players: {players}")
+    print(f"Players: {board_state.players}")
 
-    for player in players:
+    for player in board_state.players:
         if player.sid == request.sid:  # type: ignore
             print(f"Player {player.name}, {player.sid} disconnected.")
             player.name = ""
@@ -220,9 +221,9 @@ def handle_disconnect(reason):
             player.score = 0
             break
 
-    print(f"Players: {players}")
+    print(f"Players: {board_state.players}")
 
-    players_json = json.dumps(obj=[player.to_json() for player in players])
+    players_json = json.dumps(obj=[player.to_json() for player in board_state.players])
     players_dict: list[dict[str, str | PieceTypes | int]
                        ] = json.loads(players_json)
 

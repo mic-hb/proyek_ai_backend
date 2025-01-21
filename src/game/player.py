@@ -3,7 +3,8 @@
 import json
 from dataclasses import dataclass, field, asdict
 from dataclasses_json import dataclass_json
-from src.game.board import PieceTypes
+from src.game.constants import PieceTypes
+from src.game.piece import Piece
 
 
 @dataclass_json
@@ -27,6 +28,7 @@ class Player:
     name: str = field(default="")
     sid: str = field(default="")
     piece_type: PieceTypes = field(default=PieceTypes.BLANK)
+    pieces: list[Piece] = field(default_factory=list)
     score: int = field(default=0)
 
     # def __init__(self):
@@ -59,3 +61,13 @@ class Player:
             The player object created from the JSON string.
         """
         return Player(**json.loads(json_str))
+
+    def initialize_pieces(self) -> None:
+        """
+        Initialize the player's pieces.
+        """
+        pieces = []
+        for _ in range(2) if self.piece_type == PieceTypes.MACAN else range(8):
+            pieces.append(Piece(type=self.piece_type))
+
+        self.pieces = pieces

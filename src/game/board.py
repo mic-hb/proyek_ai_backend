@@ -7,24 +7,8 @@ from typing import Dict, List, TypeAlias, Union
 
 from dataclasses_json import dataclass_json
 
-
-class PieceTypes(IntEnum):
-    """An enumeration representing the player types."""
-    INVALID = 9
-    BLANK = 0
-    MACAN = 1
-    UWONG = 2
-
-
-class CellTypes(IntEnum):
-    """An enumeration representing the cell types."""
-    INVALID = 0
-    ALL_DIRECTIONS = 8
-    FOUR_DIRECTIONS = 4
-    SPECIAL = 3
-
-
-PossibleMoves: TypeAlias = List[tuple[int, int, str]]
+from src.game.player import Player
+from src.game.constants import PieceTypes, CellTypes
 
 
 @dataclass_json
@@ -78,6 +62,7 @@ class GameBoard:
     center_board: Board
     left_wing: Board
     right_wing: Board
+    players: list[Player]
 
     def __init__(self):
         # Define the center board
@@ -108,6 +93,9 @@ class GameBoard:
         self.center_board[2][0].type = CellTypes.SPECIAL
         # Special space to move to right wing
         self.center_board[2][4].type = CellTypes.SPECIAL
+
+        # Initialize players
+        self.players = [Player(), Player()]
 
     def calculate_valid_moves(self):
         """
@@ -170,7 +158,7 @@ class GameBoard:
                 moves.append((nr, nc))
         return moves
 
-    def make_move(self, player_piece_type, board_type, target_row: int, target_col: int):
+    def make_move(self, player_piece_type: PieceTypes, board_type, target_row: int, target_col: int):
         """
         Make a move on the game board.
 
@@ -183,6 +171,10 @@ class GameBoard:
             target_row (int): The target row position for the move.
             target_col (int): The target column position for the move.
         """
+
+        player: Player = self.get_player_by_piece_type(player_piece_type)
+
+
         if board_type == "center_board":
             print(f"Player {player_piece_type} moved to center board: ({
                   target_row}, {target_col})")
@@ -235,3 +227,10 @@ class GameBoard:
     def reset(self):
         """Reset the game board to its initial state."""
         self.__init__()
+
+    def get_player_by_piece_type(self, player_piece_type) -> Player:
+        for player in self.players:
+            if player.piece_type == player_piece_type:
+                return player
+
+        return Player()

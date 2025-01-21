@@ -3,8 +3,51 @@
 import json
 from dataclasses import dataclass, field, asdict
 from dataclasses_json import dataclass_json
-from src.game.board import PieceTypes
+from src.game.constants import PieceTypes
 
+
+@dataclass_json
+@dataclass
+class PositionVector:
+    x: int
+    y: int
+
+    def __to_json__(self) -> str:
+        return json.dumps(asdict(self))
+
+    @staticmethod
+    def from_json(json_str: str) -> 'PositionVector':
+        return PositionVector(**json.loads(json_str))
+
+    def __add__(self, other: 'PositionVector') -> 'PositionVector':
+        return PositionVector(x=self.x + other.x, y=self.y + other.y)
+
+    def __sub__(self, other: 'PositionVector') -> 'PositionVector':
+        return PositionVector(x=self.x - other.x, y=self.y - other.y)
+
+    def __mul__(self, other: int) -> 'PositionVector':
+        return PositionVector(x=self.x * other, y=self.y * other)
+
+    # def __eq__(self, other: 'PositionVector') -> bool:
+    #     return self.x == other.x and self.y == other.y
+
+    # def __ne__(self, other: 'PositionVector') -> bool:
+    #     return self.x != other.x or self.y != other.y
+
+    def __lt__(self, other: 'PositionVector') -> bool:
+        return self.x < other.x and self.y < other.y
+
+    def __le__(self, other: 'PositionVector') -> bool:
+        return self.x <= other.x and self.y <= other.y
+
+    def __gt__(self, other: 'PositionVector') -> bool:
+        return self.x > other.x and self.y > other.y
+
+    def __ge__(self, other: 'PositionVector') -> bool:
+        return self.x >= other.x and self.y >= other.y
+
+    def __str__(self) -> str:
+        return f"({self.x}, {self.y})"
 
 @dataclass_json
 @dataclass
@@ -15,14 +58,9 @@ class Piece:
     Attributes
     ----------
     """
-    position: tuple[int, int] = field(default=(0, 0))
-    piece_type: PieceTypes = field(default=PieceTypes.BLANK)
-    valid_moves: list[tuple[int, int]] = field(default_factory=list)
-
-
-    def __init__(self, position: tuple[int, int], piece_type: PieceTypes):
-        self.position = position
-        self.piece_type = piece_type
+    position: PositionVector = field(default_factory=lambda: PositionVector(x=-1, y=-1))
+    type: PieceTypes = field(default=PieceTypes.BLANK)
+    valid_moves: list[PositionVector] = field(default_factory=list)
 
     def to_json(self) -> str:
         """
