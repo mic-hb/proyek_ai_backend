@@ -175,8 +175,6 @@ class Game:
 
         if moved_piece is None:
             return
-        moved_piece.position.x = target_col
-        moved_piece.position.y = target_row
 
         self.move_piece(moved_piece, target_row, target_col)
         # self.recalculate_board()
