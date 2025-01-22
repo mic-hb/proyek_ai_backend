@@ -68,6 +68,15 @@ class Game:
         # Define the center board
         self.board = self._initial_board(5, 9)
 
+        # Mark cells with only 4 directions
+        for i in [0, 2, 4]:
+            for j in [3, 5]:
+                self.board[i][j].type = CellTypes.FOUR_DIRECTIONS
+
+        for i in [1, 3]:
+            for j in [2, 4, 6]:
+                self.board[i][j].type = CellTypes.FOUR_DIRECTIONS
+
         # Mark invalid spaces (X) on the left and right wings
         for i in [0, 4]:
             for j in [0, 1, 7, 8]:
