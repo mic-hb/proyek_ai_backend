@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass, field, asdict
 from enum import Enum, IntEnum
-from typing import Dict, List, TypeAlias, Union
+from typing import Dict, List, TypeAlias, Union, Optional
 
 from dataclasses_json import dataclass_json
 
@@ -16,7 +16,7 @@ from src.game.constants import PieceTypes, CellTypes
 @dataclass
 class Cell:
     """A dataclass representing a cell on the game board."""
-    piece_type: PieceTypes = field(default=PieceTypes.BLANK)
+    piece: Piece = field(default_factory=Piece)
     type: CellTypes = field(default=CellTypes.INVALID)
     valid_moves: list[tuple[int, int, str]] = field(default_factory=list)
 
@@ -71,7 +71,7 @@ class Game:
         # Mark invalid spaces (X) on the left and right wings
         for i in [0, 4]:
             for j in [0, 1, 7, 8]:
-                self.board[i][j] = Cell(piece_type=PieceTypes.INVALID,  valid_moves=[],  type=CellTypes.INVALID)
+                self.board[i][j] = Cell(Piece(type=PieceTypes.INVALID),  valid_moves=[],  type=CellTypes.INVALID)
 
         # Add valid_moves manually for type 3 spaces
         # Special space to move to left wing
@@ -85,7 +85,7 @@ class Game:
 
     def _initial_board(self, rows, columns) -> List[List[Cell]]:
         return [
-            [Cell(piece_type=PieceTypes.BLANK,
+            [Cell(piece=Piece(type=PieceTypes.BLANK),
                   valid_moves=[],  type=CellTypes.ALL_DIRECTIONS) for _ in range(columns)] for _ in range(rows)
         ]
 
@@ -178,7 +178,8 @@ class Game:
         moved_piece.position.x = target_col
         moved_piece.position.y = target_row
 
-        self.recalculate_board()
+        self.move_piece(moved_piece, target_row, target_col)
+        # self.recalculate_board()
 
         if self.turn == PieceTypes.MACAN:
             self.turn = PieceTypes.UWONG
@@ -208,11 +209,11 @@ class Game:
 
     def format_board(self) -> str:
         """Format the game board for display."""
-        center_board: list[list[PieceTypes]] = [[cell.piece_type for cell in row[2:7]]
+        center_board: list[list[PieceTypes]] = [[cell.piece.type for cell in row[2:7]]
                                                 for row in self.board]
-        left_wing: list[list[PieceTypes]] = [[cell.piece_type for cell in row[0:2]]
+        left_wing: list[list[PieceTypes]] = [[cell.piece.type for cell in row[0:2]]
                                              for row in self.board]
-        right_wing: list[list[PieceTypes]] = [[cell.piece_type for cell in row[7:9]]
+        right_wing: list[list[PieceTypes]] = [[cell.piece.type for cell in row[7:9]]
                                               for row in self.board]
 
         formatted_board = ""
@@ -246,10 +247,16 @@ class Game:
     def recalculate_board(self):
         for row in self.board:
             for cell in row:
-                cell.piece_type = PieceTypes.BLANK
+                cell.piece = Piece(type=PieceTypes.BLANK)
 
         for player in self.players:
             for piece in player.pieces:
                 if piece.position.x == -1 and piece.position.y == -1:
                     continue
-                self.board[piece.position.y][piece.position.x].piece_type = piece.type
+                self.board[piece.position.y][piece.position.x].piece = piece
+
+    def move_piece(self, moved_piece, target_row, target_col):
+        self.board[moved_piece.position.y][moved_piece.position.x].piece = Piece(type=PieceTypes.BLANK)
+        moved_piece.position.x = target_col
+        moved_piece.position.y = target_row
+        self.board[target_row][target_col].piece = moved_piece
