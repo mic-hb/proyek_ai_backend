@@ -73,6 +73,14 @@ class Game:
             for j in [0, 1, 7, 8]:
                 self.board[i][j] = Cell(Piece(type=PieceTypes.INVALID),  valid_moves=[],  type=CellTypes.INVALID)
 
+        for i in [1, 3]:
+            for j in [0, 1]:
+                self.board[i][j] = Cell(Piece(type=PieceTypes.BLANK),  valid_moves=[],  type=CellTypes.WINGS)
+
+        for i in [1, 3]:
+            for j in [7, 8]:
+                self.board[i][j] = Cell(Piece(type=PieceTypes.BLANK),  valid_moves=[],  type=CellTypes.WINGS)
+
         # Add valid_moves manually for type 3 spaces
         # Special space to move to left wing
         self.board[2][2].type = CellTypes.SPECIAL

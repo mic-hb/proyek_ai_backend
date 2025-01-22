@@ -14,6 +14,7 @@ class CellTypes(IntEnum):
     INVALID = 0
     ALL_DIRECTIONS = 8
     FOUR_DIRECTIONS = 4
+    WINGS = 2
     SPECIAL = 3
 
 
