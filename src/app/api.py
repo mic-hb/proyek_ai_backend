@@ -243,4 +243,4 @@ def handle_disconnect(reason):
     emit('player_state', json.dumps(response_data), broadcast=True)
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000)
+    socketio.run(app, host='0.0.0.0', port=8080)
