@@ -31,7 +31,7 @@ Board: TypeAlias = list[list[Cell]]
 
 @dataclass_json
 @dataclass(order=True)
-class GameBoard:
+class Game:
     """
     A class to represent the game board.
 
@@ -60,24 +60,24 @@ class GameBoard:
     __init__():
         Initializes the game board with center, left wing, and right wing grids. Marks invalid spaces and sets special spaces.
     """
-    center_board: Board
+    board: Board
     players: list[Player]
     turn: PieceTypes = field(default=PieceTypes.MACAN)
 
     def __init__(self):
         # Define the center board
-        self.center_board = self._initial_board(5, 9)
+        self.board = self._initial_board(5, 9)
 
         # Mark invalid spaces (X) on the left and right wings
         for i in [0, 4]:
             for j in [0, 1, 7, 8]:
-                self.center_board[i][j] = Cell(piece_type=PieceTypes.INVALID,  valid_moves=[],  type=CellTypes.INVALID)
+                self.board[i][j] = Cell(piece_type=PieceTypes.INVALID,  valid_moves=[],  type=CellTypes.INVALID)
 
         # Add valid_moves manually for type 3 spaces
         # Special space to move to left wing
-        self.center_board[2][2].type = CellTypes.SPECIAL
+        self.board[2][2].type = CellTypes.SPECIAL
         # Special space to move to right wing
-        self.center_board[2][6].type = CellTypes.SPECIAL
+        self.board[2][6].type = CellTypes.SPECIAL
 
         # Initialize players
         self.players = [Player(), Player()]
@@ -118,16 +118,16 @@ class GameBoard:
         # Center board valid moves
         for row in range(5):
             for col in range(5):
-                if self.center_board[row][col].type == 1:
-                    self.center_board[row][col].valid_moves = self.get_moves(
-                        row, col, directions_8, self.center_board)
-                elif self.center_board[row][col].type == 2:
-                    self.center_board[row][col].valid_moves = self.get_moves(
-                        row, col, directions_4, self.center_board)
+                if self.board[row][col].type == 1:
+                    self.board[row][col].valid_moves = self.get_moves(
+                        row, col, directions_8, self.board)
+                elif self.board[row][col].type == 2:
+                    self.board[row][col].valid_moves = self.get_moves(
+                        row, col, directions_4, self.board)
 
         # Special moves for wings
-        self.center_board[2][0].valid_moves = [(2, 1, "left")]
-        self.center_board[2][4].valid_moves = [(2, 1, "right")]
+        self.board[2][0].valid_moves = [(2, 1, "left")]
+        self.board[2][4].valid_moves = [(2, 1, "right")]
 
     def get_moves(self, row, col, directions, board):
         """
@@ -203,17 +203,17 @@ class GameBoard:
         # Implement the logic to convert the game state to JSON
 
         return json.dumps({
-            'center_board': self.center_board,
+            'center_board': self.board,
         })
 
     def format_board(self) -> str:
         """Format the game board for display."""
         center_board: list[list[PieceTypes]] = [[cell.piece_type for cell in row[2:7]]
-                                                for row in self.center_board]
+                                                for row in self.board]
         left_wing: list[list[PieceTypes]] = [[cell.piece_type for cell in row[0:2]]
-                                             for row in self.center_board]
+                                             for row in self.board]
         right_wing: list[list[PieceTypes]] = [[cell.piece_type for cell in row[7:9]]
-                                              for row in self.center_board]
+                                              for row in self.board]
 
         formatted_board = ""
         for y in [0, 1, 2, 3, 4]:
@@ -244,7 +244,7 @@ class GameBoard:
         return Player()
 
     def recalculate_board(self):
-        for row in self.center_board:
+        for row in self.board:
             for cell in row:
                 cell.piece_type = PieceTypes.BLANK
 
@@ -252,4 +252,4 @@ class GameBoard:
             for piece in player.pieces:
                 if piece.position.x == -1 and piece.position.y == -1:
                     continue
-                self.center_board[piece.position.y][piece.position.x].piece_type = piece.type
+                self.board[piece.position.y][piece.position.x].piece_type = piece.type
