@@ -16,14 +16,14 @@ from src.game.constants import PieceTypes, CellTypes
 class Game:
     """A class to represent the game board."""
     board: Board
-    players: list[Player]
+    players: list[Player] = field(default_factory=list)
     turn: PieceTypes = field(default=PieceTypes.MACAN)
 
     def __init__(self):
         # Initialize board and players
-        self.board = Board(cells=self._initial_board(5, 9))
-        self.players = [Player(), Player()]
+        self.board = self._initial_board(5, 9)
         self.turn = PieceTypes.MACAN
+        self.players = []
 
         # Initialize board setup
         self._setup_board()
@@ -39,11 +39,11 @@ class Game:
         # Mark cells with only 4 directions
         for i in [0, 2, 4]:
             for j in [3, 5]:
-                self.board.cells[i][j].type = CellTypes.FOUR_DIRECTIONS
+                self.board[i][j].type = CellTypes.FOUR_DIRECTIONS
 
         for i in [1, 3]:
             for j in [2, 4, 6]:
-                self.board.cells[i][j].type = CellTypes.FOUR_DIRECTIONS
+                self.board[i][j].type = CellTypes.FOUR_DIRECTIONS
 
         # Setup invalid spaces and wings
         self._setup_invalid_spaces()
@@ -53,7 +53,7 @@ class Game:
     def _setup_invalid_spaces(self):
         for i in [0, 4]:
             for j in [0, 1, 7, 8]:
-                self.board.cells[i][j] = Cell(
+                self.board[i][j] = Cell(
                     Piece(type=PieceTypes.INVALID),
                     valid_moves=[],
                     type=CellTypes.INVALID
@@ -62,7 +62,7 @@ class Game:
     def _setup_wings(self):
         for i in [1, 3]:
             for j in [0, 1, 7, 8]:
-                self.board.cells[i][j] = Cell(
+                self.board[i][j] = Cell(
                     Piece(type=PieceTypes.BLANK),
                     valid_moves=[],
                     type=CellTypes.WINGS
@@ -70,9 +70,9 @@ class Game:
 
     def _setup_special_spaces(self):
         # Special space to move to left wing
-        self.board.cells[2][2].type = CellTypes.SPECIAL
+        self.board[2][2].type = CellTypes.SPECIAL
         # Special space to move to right wing
-        self.board.cells[2][6].type = CellTypes.SPECIAL
+        self.board[2][6].type = CellTypes.SPECIAL
 
     def calculate_valid_moves(self):
         """
@@ -101,16 +101,16 @@ class Game:
         # Center board valid moves
         for row in range(5):
             for col in range(5):
-                if self.board.cells[row][col].type == CellTypes.ALL_DIRECTIONS:
-                    self.board.cells[row][col].valid_moves = self.get_moves(
-                        row, col, directions_8, self.board.cells)
-                elif self.board.cells[row][col].type == CellTypes.FOUR_DIRECTIONS:
-                    self.board.cells[row][col].valid_moves = self.get_moves(
-                        row, col, directions_4, self.board.cells)
+                if self.board[row][col].type == CellTypes.ALL_DIRECTIONS:
+                    self.board[row][col].valid_moves = self.get_moves(
+                        row, col, directions_8, self.board)
+                elif self.board[row][col].type == CellTypes.FOUR_DIRECTIONS:
+                    self.board[row][col].valid_moves = self.get_moves(
+                        row, col, directions_4, self.board)
 
         # Special moves for wings
-        self.board.cells[2][0].valid_moves = [(2, 1, "left")]
-        self.board.cells[2][4].valid_moves = [(2, 1, "right")]
+        self.board[2][0].valid_moves = [(2, 1, "left")]
+        self.board[2][4].valid_moves = [(2, 1, "right")]
 
     def get_moves(self, row: int, col: int, directions: List[tuple[int, int]], board: List[List[Cell]]) -> List[tuple[int, int, str]]:
         """
@@ -173,11 +173,11 @@ class Game:
     def format_board(self) -> str:
         """Format the game board for display."""
         center_board: list[list[PieceTypes]] = [[cell.piece.type for cell in row[2:7]]
-                                               for row in self.board.cells]
+                                               for row in self.board]
         left_wing: list[list[PieceTypes]] = [[cell.piece.type for cell in row[0:2]]
-                                            for row in self.board.cells]
+                                            for row in self.board]
         right_wing: list[list[PieceTypes]] = [[cell.piece.type for cell in row[7:9]]
-                                             for row in self.board.cells]
+                                             for row in self.board]
 
         formatted_board = ""
         for y in [0, 1, 2, 3, 4]:
@@ -209,7 +209,7 @@ class Game:
 
     def recalculate_board(self):
         """Recalculate the board state based on piece positions."""
-        for row in self.board.cells:
+        for row in self.board:
             for cell in row:
                 cell.piece = Piece(type=PieceTypes.BLANK)
 
@@ -217,11 +217,12 @@ class Game:
             for piece in player.pieces:
                 if piece.position.x == -1 and piece.position.y == -1:
                     continue
-                self.board.cells[piece.position.y][piece.position.x].piece = piece
+                self.board[piece.position.y][piece.position.x].piece = piece
 
     def move_piece(self, moved_piece: Piece, target_row: int, target_col: int):
         """Move a piece to a new position on the board."""
-        self.board.cells[moved_piece.position.y][moved_piece.position.x].piece = Piece(type=PieceTypes.BLANK)
+        self.board[moved_piece.position.y][moved_piece.position.x].piece = Piece(type=PieceTypes.BLANK)
         moved_piece.position.x = target_col
         moved_piece.position.y = target_row
-        self.board.cells[target_row][target_col].piece = moved_piece
+        self.board[target_row][target_col].piece = moved_piece
+

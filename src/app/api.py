@@ -1,14 +1,18 @@
 """ API for the game server. """
 
 import json
+from typing import Dict
+import uuid
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room
 
 from src.game.board import Board
 from src.game.game import Game
 from src.game.constants import PieceTypes
+from src.game.player import Player
+from src.game.room import Room
 
 # Initialize Flask and Flask-SocketIO
 app = Flask(__name__)
@@ -16,14 +20,19 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app=app, cors_allowed_origins="*", logger=True)
 
-# Initialize the game
-game_state = Game()
+# Store active rooms
+rooms: Dict[str, Room] = {}
 
-@app.route('/game/state', methods=['GET'])
-def get_game_state() -> dict[str, Board]:
+
+@app.route('/room/<room_code>/game/state', methods=['GET'])
+def get_game_state(room_code: str) -> dict[str, Board]:
     """
     Fetch the current game state including the board and valid moves.
     """
+
+    room: Room = rooms[room_code]
+    game_state: Game = room.game_state
+
     game_state.calculate_valid_moves()
 
     game_state_json: str = game_state.to_json()
@@ -41,23 +50,29 @@ def get_game_state() -> dict[str, Board]:
     return data
 
 
-@app.route('/game/board', methods=['GET'])
-def get_game_board() -> str:
+@app.route('/room/<room_code>/game/board', methods=['GET'])
+def get_game_board(room_code: str) -> str:
     """
     Fetch the current game board.
     """
+    room: Room = rooms[room_code]
+    game_state: Game = room.game_state
+
     formatted_board = game_state.format_board()
 
     return formatted_board  # type: ignore
 
 
-@app.route('/game/move', methods=['POST'])
-def make_move():
+@app.route('/room/<room_code>/game/move', methods=['POST'])
+def make_move(room_code: str):
     """
     Make a move by updating the board and sending the new state.
     The move data should be passed in the body (JSON).
     """
     move = request.json  # Expecting a move in the form: {"row": x, "col": y, "target_row": tr, "target_col": tc}
+
+    room: Room = rooms[room_code]
+    game_state: Game = room.game_state
 
     # Apply move here (update the game logic)
     # For simplicity, we just print it out for now
@@ -69,11 +84,14 @@ def make_move():
     return jsonify({'message': 'Move applied successfully!'})
 
 
-@app.route('/game/reset', methods=['POST'])
-def reset_game():
+@app.route('/room/<room_code>/game/reset', methods=['POST'])
+def reset_game(room_code: str):
     """
     Reset the game to its initial state.
     """
+    room: Room = rooms[room_code]
+    game_state: Game = room.game_state
+
     game_state.reset()
 
     game_state_json: str = game_state.to_json()
@@ -82,7 +100,20 @@ def reset_game():
 
     return jsonify({'message': 'Game reset successfully!'})
 
+@app.route('/rooms', methods=['GET'])
+def get_rooms():
+    """
+    Fetch the current rooms.
+    """
+    room_list= [{
+        'code': room.code,
+        'name': room.name,
+        'is_private': room.is_private,
+        'all_players_ready': room.all_players_ready,
+        'players': [player for player in room.game_state.players]
+    } for room in rooms.values()]
 
+    return jsonify({'rooms': room_list})
 
 # WebSocket for real-time updates
 @socketio.on('connect')
@@ -92,118 +123,14 @@ def handle_connect():
     """
     print(f"Client connected, sid: {request.sid}")  # type: ignore
 
-    game_state_json: str = game_state.to_json()
-    game_state_dict: dict[str, Board] = json.loads(game_state_json)
-
-    players_json = json.dumps(obj=[player.to_json() for player in game_state.players])
-    players_dict: list[dict[str, str | PieceTypes | int]
-                       ] = json.loads(players_json)
-
-    print(f"Players: {players_dict}")
-
     connection_response_data = {
         'you_are': {
             'sid': request.sid  # type: ignore
         },
-        'players': players_dict,
-        'game_state': game_state_dict
     }
 
-    emit('init_game', json.dumps(connection_response_data))
+    emit('connection_response', json.dumps(connection_response_data))
 
-
-@socketio.on('make_move')
-def handle_make_move(data: dict):
-    """
-    Handle the player's move via WebSocket and broadcast the new game state.
-    """
-    print(f"Move received: {data}")
-
-    if game_state.turn != data['player_piece']['type']:
-        emit('invalid_move', 'Not your turn!')
-        return
-
-    # Process the move (update the game state)
-    game_state.make_move(data['player_name'], data['player_piece'],
-                          data['row'], data['col'])
-
-    # Recalculate valid moves and emit back the new state
-    # game.calculate_valid_moves()
-
-    game_state_json: str = game_state.to_json()
-    game_state_dict: dict[str, Board] = json.loads(game_state_json)
-
-    players_json = json.dumps(obj=[player.to_json() for player in game_state.players])
-    players_dict: list[dict[str, str | PieceTypes | int]
-                       ] = json.loads(players_json)
-
-    response_data = {
-        'players': players_dict,
-        'game_state': game_state_dict
-    }
-
-    emit('game_state', json.dumps(response_data), broadcast=True)
-
-@socketio.on('send_initial_player_data')
-def initial_player_data(data: dict):
-    """
-    Initialize the player data.
-    """
-    print(f"Player data received: {data}")
-    current_player_name = data['name']
-
-    if game_state.players[0].name == "":
-        game_state.players[0].name = current_player_name
-        game_state.players[0].sid = request.sid  # type: ignore
-    elif game_state.players[1].name == "":
-        game_state.players[1].name = current_player_name
-        game_state.players[1].sid = request.sid  # type: ignore
-    else:
-        emit('game_full', json.dumps({'message': 'Game is full!'}))
-
-    game_state_json: str = game_state.to_json()
-    game_state_dict: dict[str, Board] = json.loads(game_state_json)
-
-    players_json = json.dumps(obj=[player.to_json() for player in game_state.players])
-    players_dict: list[dict[str, str | PieceTypes | int]
-                       ] = json.loads(players_json)
-
-    print(f"Players: {players_dict}")
-
-    response_data = {
-        'players': players_dict
-    }
-
-    emit('player_state', json.dumps(response_data), broadcast=True)
-
-
-@socketio.on('send_player_data')
-def update_player_data(data: dict):
-    """
-    Update the player data.
-    """
-    print(f"Player data received: {data}")
-    current_player = data['name']
-
-    for player in game_state.players:
-        if player.name == current_player:
-            player.piece_type = data['pieceType']
-            player.score = data['score']
-            player.initialize_pieces()
-
-
-    game_state_json: str = game_state.to_json()
-    game_state_dict: dict[str, Board] = json.loads(game_state_json)
-
-    players_json = json.dumps(obj=[player.to_json() for player in game_state.players])
-    players_dict: list[dict[str, str | PieceTypes | int]
-                       ] = json.loads(players_json)
-
-    response_data = {
-        'players': players_dict
-    }
-
-    emit('player_state', json.dumps(response_data), broadcast=True)
 
 @socketio.on('disconnect')
 def handle_disconnect(reason):
@@ -213,35 +140,157 @@ def handle_disconnect(reason):
     print(f'Client disconnected, reason: {reason}')
     print(f'Player disconnected: {request.sid}')  # type: ignore
 
-    print(f"Players: {game_state.players}")
+    room_code: str = request.sid  # type: ignore
+    room: Room = rooms[room_code]
+    game_state: Game = room.game_state
 
-    disconnected_players = 0
-    for player in game_state.players:
-        if player.sid == "":
-            disconnected_players += 1
-        if player.sid == request.sid:  # type: ignore
-            print(f"Player {player.name}, {player.sid} disconnected.")
-            player.name = ""
-            player.sid = ""
-            player.piece_type = PieceTypes.BLANK
-            player.score = 0
-            disconnected_players += 1
-            break
+    game_state.players = [player for player in game_state.players if player.sid != request.sid]  # type: ignore
 
-    if disconnected_players == len(game_state.players):
-        game_state.reset()
+    # emit('player_state', json.dumps(response_data), broadcast=True)
 
-    print(f"Players: {game_state.players}")
 
-    players_json = json.dumps(obj=[player.to_json() for player in game_state.players])
-    players_dict: list[dict[str, str | PieceTypes | int]
-                       ] = json.loads(players_json)
+@socketio.on('create_room')
+def handle_create_room(data: dict):
+    room_code: str = str(uuid.uuid4())[:8]
+
+    rooms[room_code] = Room(
+        code=room_code,
+        name=data['name'],
+        is_private=data['isPrivate'],
+        game_state=Game()
+    )
+    join_room(room=room_code)
+
+    room_json: str = rooms[room_code].to_json()
+    room_dict: Dict[str, str | bool| Game]= json.loads(room_json)
 
     response_data = {
-        'players': players_dict
+        'room': room_dict
     }
 
-    emit('player_state', json.dumps(response_data), broadcast=True)
+    emit('room_created', json.dumps(response_data))
+    emit('new_room_state', json.dumps(response_data), to=room_code,broadcast=True)
+
+@socketio.on('join_room')
+def handle_join_room(data: dict):
+    room_code: str = data['roomCode']
+    if room_code not in rooms:
+        emit('error', 'Room not found')
+        return
+
+    room = rooms[room_code]
+    if len(room.game_state.players) >= 2:
+        emit('room_full')
+        return
+
+    join_room(room=room_code)
+
+    room_json: str = room.to_json()
+    room_dict: dict[str, str | bool | Game] = json.loads(room_json)
+
+    response_data = {
+        'room': room_dict
+    }
+
+    emit('room_joined', json.dumps(response_data))
+    emit('new_room_state', json.dumps(response_data), to=room_code,broadcast=True)
+
+
+@socketio.on('send_initial_player_data')
+def initial_player_data(data: dict):
+    """
+    Initialize the player data.
+    """
+    print(f"Player data received: {data}")
+
+    room_code: str = data['roomCode']
+    room: Room = rooms[room_code]
+    game_state: Game = room.game_state
+
+    player_sids: list[str] = [p.sid for p in game_state.players]
+
+    if request.sid not in player_sids:  # type: ignore
+        player = Player(
+            name=data['name'],
+            sid=request.sid,  # type: ignore
+            piece_type=data['pieceType']
+        )
+        game_state.players.append(player)
+    else:
+        player: Player = next((p for p in game_state.players if p.sid == request.sid), None)  # type: ignore
+        player.name = data['name']
+        player.piece_type = data['pieceType']
+
+    room_json: str = room.to_json()
+    room_dict: dict[str, Room] = json.loads(room_json)
+
+    response_data = {
+        'room': room_dict
+    }
+
+    emit('new_room_state', json.dumps(response_data), to=room_code,broadcast=True)
+
+@socketio.on('send_player_data')
+def update_player_data(data: dict):
+    """
+    Update the player data.
+    """
+    print(f"Player data received: {data}")
+    current_player: str = data['name']
+
+    room_code: str = data['roomCode']
+    room: Room = rooms[room_code]
+    game_state: Game = room.game_state
+
+    for player in game_state.players:
+        if player.name == current_player:
+            player.piece_type = data['pieceType']
+            player.initialize_pieces()
+
+    if len([p for p in room.game_state.players if p.piece_type != PieceTypes.BLANK]) == 2:
+        room.all_players_ready = True
+
+    room_json: str = room.to_json()
+    room_dict: dict[str, Room] = json.loads(room_json)
+
+    response_data = {
+        'room': room_dict
+    }
+
+    emit('new_room_state', json.dumps(response_data), to=room_code,broadcast=True)
+
+
+@socketio.on('make_move')
+def handle_make_move(data: dict):
+    """
+    Handle the player's move via WebSocket and broadcast the new game state.
+    """
+    print(f"Move received: {data}")
+
+    room_code: str = data['roomCode']
+    room: Room = rooms[room_code]
+    game_state: Game = room.game_state
+
+    if game_state.turn != data['playerPiece']['type']:
+        emit('invalid_move', 'Not your turn!')
+        return
+
+    # Process the move (update the game state)
+    game_state.make_move(data['playerName'], data['playerPiece'], data['row'], data['col'])
+
+    # Recalculate valid moves and emit back the new state
+    # game.calculate_valid_moves()
+
+    game_state_json: str = game_state.to_json()
+    game_state_dict: dict[str, Board | list[Player] | PieceTypes] = json.loads(game_state_json)
+
+    response_data = {
+        'game_state': game_state_dict
+    }
+
+    emit('update_game_state', json.dumps(response_data), to=room_code,broadcast=True)
+
+
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=8080)
