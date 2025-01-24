@@ -122,6 +122,7 @@ def handle_connect():
     Handle new WebSocket connections. Send the initial game state.
     """
     print(f"Client connected, sid: {request.sid}")  # type: ignore
+    print(f"Rooms: {socketio.server.manager.rooms.keys()}")  # type: ignore
 
     connection_response_data = {
         'you_are': {
@@ -140,13 +141,20 @@ def handle_disconnect(reason):
     print(f'Client disconnected, reason: {reason}')
     print(f'Player disconnected: {request.sid}')  # type: ignore
 
-    room_code: str = request.sid  # type: ignore
-    room: Room = rooms[room_code]
-    game_state: Game = room.game_state
+    for room in rooms.values():
+        for player in room.game_state.players:
+            if player.sid == request.sid:  # type: ignore
+                room.game_state.players.remove(player)
 
-    game_state.players = [player for player in game_state.players if player.sid != request.sid]  # type: ignore
+                room_json: str = room.to_json()
+                room_dict: dict[str, str | bool | Game] = json.loads(room_json)
 
-    # emit('player_state', json.dumps(response_data), broadcast=True)
+                response_data = {
+                    'room': room_dict
+                }
+
+                emit('new_room_state', json.dumps(response_data), to=room.code,broadcast=True)
+
 
 
 @socketio.on('create_room')
