@@ -6,7 +6,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 
-from src.game.board import Board, Game
+from src.game.board import Board
+from src.game.game import Game
 from src.game.constants import PieceTypes
 
 # Initialize Flask and Flask-SocketIO
@@ -41,7 +42,7 @@ def get_game_state() -> dict[str, Board]:
 
 
 @app.route('/game/board', methods=['GET'])
-def get_game_board() -> Board:
+def get_game_board() -> str:
     """
     Fetch the current game board.
     """
