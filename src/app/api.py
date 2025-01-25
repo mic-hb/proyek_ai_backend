@@ -146,6 +146,11 @@ def handle_disconnect(reason):
             if player.sid == request.sid:  # type: ignore
                 room.game_state.players.remove(player)
 
+                if len([p for p in room.game_state.players if p.piece_type != PieceTypes.BLANK]) == 2:
+                    room.all_players_ready = True
+                else:
+                    room.all_players_ready = False
+
                 room_json: str = room.to_json()
                 room_dict: dict[str, str | bool | Game] = json.loads(room_json)
 
@@ -164,7 +169,7 @@ def handle_create_room(data: dict):
     rooms[room_code] = Room(
         code=room_code,
         name=data['name'],
-        is_private=data['isPrivate'],
+        is_private=True if data['isPrivate'] == 'true' else False,
         game_state=Game()
     )
     join_room(room=room_code)
@@ -181,6 +186,7 @@ def handle_create_room(data: dict):
 
 @socketio.on('join_room')
 def handle_join_room(data: dict):
+    print(data)
     room_code: str = data['roomCode']
     if room_code not in rooms:
         emit('error', 'Room not found')
@@ -188,7 +194,7 @@ def handle_join_room(data: dict):
 
     room = rooms[room_code]
     if len(room.game_state.players) >= 2:
-        emit('room_full')
+        emit('room_full', 'Room is full')
         return
 
     join_room(room=room_code)
@@ -209,7 +215,7 @@ def initial_player_data(data: dict):
     """
     Initialize the player data.
     """
-    print(f"Player data received: {data}")
+    print(f"Initial player data received: {request.sid}, {data}") # type: ignore
 
     room_code: str = data['roomCode']
     room: Room = rooms[room_code]
@@ -229,6 +235,8 @@ def initial_player_data(data: dict):
         player.name = data['name']
         player.piece_type = data['pieceType']
 
+    print(f"Players: {[{p.sid: [p.name,p.piece_type]} for p in game_state.players]}")
+
     room_json: str = room.to_json()
     room_dict: dict[str, Room] = json.loads(room_json)
 
@@ -243,20 +251,26 @@ def update_player_data(data: dict):
     """
     Update the player data.
     """
-    print(f"Player data received: {data}")
-    current_player: str = data['name']
+    print(f"Player data received: {request.sid}, {data}") # type: ignore
+    current_player: str = request.sid  # type: ignore
 
     room_code: str = data['roomCode']
     room: Room = rooms[room_code]
     game_state: Game = room.game_state
 
     for player in game_state.players:
-        if player.name == current_player:
+        if player.sid == current_player:
+            print(f"Changing player {player.name} piece type to {data['pieceType']}")
             player.piece_type = data['pieceType']
             player.initialize_pieces()
 
+    print(f"{len([p for p in room.game_state.players if p.piece_type != PieceTypes.BLANK])} ready players: {[p.name for p in room.game_state.players if p.piece_type != PieceTypes.BLANK]}")
     if len([p for p in room.game_state.players if p.piece_type != PieceTypes.BLANK]) == 2:
         room.all_players_ready = True
+    else:
+        room.all_players_ready = False
+
+    print(f"All players ready: {room.all_players_ready}")
 
     room_json: str = room.to_json()
     room_dict: dict[str, Room] = json.loads(room_json)
