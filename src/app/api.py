@@ -170,10 +170,11 @@ def handle_disconnect(reason):
 def handle_create_room(data: dict):
     room_code: str = str(uuid.uuid4())[:8]
 
+    print(f"Creating room: private? {data['isPrivate']}")
     rooms[room_code] = Room(
         code=room_code,
         name=data['name'],
-        is_private=True if data['isPrivate'] == 'true' else False,
+        is_private=bool(data['isPrivate']),
         game_state=Game()
     )
     join_room(room=room_code)
@@ -331,7 +332,7 @@ def send_rooms():
         'is_private': room.is_private,
         'all_players_ready': room.all_players_ready,
         'players': [player.to_json() for player in room.game_state.players]
-    } for room in rooms.values()]
+    } for room in rooms.values() if room.is_private == False]
 
     room_list_json: str = json.dumps(room_list)
     room_list_dict: list[dict[str, str | bool | list[Player]]] = json.loads(room_list_json)
