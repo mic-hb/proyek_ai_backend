@@ -132,6 +132,8 @@ def handle_connect():
 
     emit('connection_response', json.dumps(connection_response_data))
 
+    send_rooms()
+
 
 @socketio.on('disconnect')
 def handle_disconnect(reason):
@@ -160,6 +162,8 @@ def handle_disconnect(reason):
 
                 emit('new_room_state', json.dumps(response_data), to=room.code,broadcast=True)
 
+    send_rooms()
+
 
 
 @socketio.on('create_room')
@@ -183,6 +187,8 @@ def handle_create_room(data: dict):
 
     emit('room_created', json.dumps(response_data))
     emit('new_room_state', json.dumps(response_data), to=room_code,broadcast=True)
+
+    send_rooms()
 
 @socketio.on('join_room')
 def handle_join_room(data: dict):
@@ -208,6 +214,8 @@ def handle_join_room(data: dict):
 
     emit('room_joined', json.dumps(response_data))
     emit('new_room_state', json.dumps(response_data), to=room_code,broadcast=True)
+
+    send_rooms()
 
 
 @socketio.on('send_initial_player_data')
@@ -246,6 +254,8 @@ def initial_player_data(data: dict):
 
     emit('new_room_state', json.dumps(response_data), to=room_code,broadcast=True)
 
+    send_rooms()
+
 @socketio.on('send_player_data')
 def update_player_data(data: dict):
     """
@@ -281,6 +291,8 @@ def update_player_data(data: dict):
 
     emit('new_room_state', json.dumps(response_data), to=room_code,broadcast=True)
 
+    send_rooms()
+
 
 @socketio.on('make_move')
 def handle_make_move(data: dict):
@@ -312,7 +324,20 @@ def handle_make_move(data: dict):
 
     emit('update_game_state', json.dumps(response_data), to=room_code,broadcast=True)
 
+def send_rooms():
+    room_list= [{
+        'code': room.code,
+        'name': room.name,
+        'is_private': room.is_private,
+        'all_players_ready': room.all_players_ready,
+        'players': [player.to_json() for player in room.game_state.players]
+    } for room in rooms.values()]
 
+    room_list_json: str = json.dumps(room_list)
+    room_list_dict: list[dict[str, str | bool | list[Player]]] = json.loads(room_list_json)
+
+    socketio.emit('new_rooms', room_list_dict)
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=8080)
+
