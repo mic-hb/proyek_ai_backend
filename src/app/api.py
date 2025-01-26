@@ -174,7 +174,7 @@ def handle_create_room(data: dict):
     rooms[room_code] = Room(
         code=room_code,
         name=data['name'],
-        is_private=bool(data['isPrivate']),
+        is_private=False,
         game_state=Game()
     )
     join_room(room=room_code)
