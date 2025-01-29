@@ -60,7 +60,7 @@ class Game:
                 )
 
     def _setup_wings(self):
-        for i in [1, 3]:
+        for i in [1, 2, 3]:
             for j in [0, 1, 7, 8]:
                 self.board[i][j] = Cell(
                     Piece(type=PieceTypes.BLANK),
@@ -132,7 +132,7 @@ class Game:
                 moves.append((nr, nc, ""))
         return moves
 
-    def make_move(self, player_name: str, player_piece: dict, target_row: int, target_col: int):
+    def make_move(self, player_sid: str, player_piece: dict, target_row: int, target_col: int):
         """
         Make a move on the game board.
 
@@ -145,11 +145,11 @@ class Game:
             target_row: The target row position for the move
             target_col: The target column position for the move
         """
-        player: Player = self.get_player_by_name(player_name)
+        player: Player = self.get_player_by_sid(player_sid)
 
         # Check which piece to move
         moved_piece = None
-        print(f"Player {player.name}, pieces: {player.pieces}")
+        # print(f"Player {player.name}, pieces: {player.pieces}")
         for piece in player.pieces:
             if piece.id == player_piece['id']:
                 moved_piece = piece
@@ -200,10 +200,10 @@ class Game:
         """Reset the game board to its initial state."""
         self.__init__()
 
-    def get_player_by_name(self, player_name: str) -> Player:
-        """Get a player by their name."""
+    def get_player_by_sid(self, player_sid: str) -> Player:
+        """Get a player by their sid."""
         for player in self.players:
-            if player.name == player_name:
+            if player.sid == player_sid:
                 return player
         return Player()
 
@@ -226,3 +226,66 @@ class Game:
         moved_piece.position.y = target_row
         self.board[target_row][target_col].piece = moved_piece
 
+    def validate_move(self, player_sid: str, player_piece: dict, target_row: int, target_col: int) -> tuple[bool, str]:
+        """Validate a move on the board."""
+
+        player: Player = self.get_player_by_sid(player_sid)
+        # Check which piece to move
+        moved_piece = None
+        # print(f"Player {player.name}, pieces: {player.pieces}")
+        for piece in player.pieces:
+            if piece.id == player_piece['id']:
+                moved_piece = piece
+
+
+        if moved_piece is None:
+            return False, "Piece not found!"
+
+        if player.piece_type != self.turn:
+            return False, "Not your turn!"
+
+        print(f"Moving piece {moved_piece.id} from {moved_piece.position.x}, {moved_piece.position.y} to {target_col}, {target_row}")
+
+        dx, dy = abs(target_col - moved_piece.position.x), abs(target_row - moved_piece.position.y)
+        is_diagonal_move: bool = dx != 0 and dy != 0
+        current_cell_type: CellTypes = self.board[moved_piece.position.y][moved_piece.position.x].type
+        target_cell_type: CellTypes = self.board[target_row][target_col].type
+
+        if dx == 0 and dy == 0:
+            return False, "Cannot move to the same position!"
+
+        if dx > 1 or dy > 1:
+            return False, "Cannot move more than 1 cell!"
+
+        if is_diagonal_move and not (current_cell_type == CellTypes.ALL_DIRECTIONS or current_cell_type == CellTypes.SPECIAL):
+            return False, "Cannot move diagonally!"
+
+        if target_row < 0 or target_row >= len(self.board) or target_col < 0 or target_col >= len(self.board[0]):
+            return False, "Move is outside the board boundaries!"
+
+        if target_cell_type == CellTypes.INVALID:
+            return False, "Invalid move!"
+
+        if self.board[target_row][target_col].piece.type != PieceTypes.BLANK:
+            return False, "Target position is occupied by another piece!"
+
+        is_current_cell_special: bool = self.board[moved_piece.position.y][moved_piece.position.x].type == CellTypes.SPECIAL
+        is_piece_on_wings: bool = (moved_piece.position.x == -1 and moved_piece.position.y == -1) or (current_cell_type == CellTypes.WINGS)
+
+        print(f"Target cell type: {target_cell_type}")
+        print(f"Is target wings: {target_cell_type == CellTypes.WINGS}")
+        print(f"Is current special: {is_current_cell_special}")
+
+        if target_cell_type == CellTypes.WINGS and not is_current_cell_special and not is_piece_on_wings:
+            return False, "Cannot move to wings!"
+
+        if target_cell_type == CellTypes.WINGS and is_diagonal_move:
+            return False, "Cannot move diagonally on wings!"
+
+
+        if current_cell_type == CellTypes.WINGS:
+            if not target_cell_type == CellTypes.SPECIAL and not target_cell_type == CellTypes.WINGS:
+                return False, "Cannot move out of wings!"
+
+
+        return True, ""

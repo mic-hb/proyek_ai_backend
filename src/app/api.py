@@ -148,10 +148,13 @@ def handle_disconnect(reason):
             if player.sid == request.sid:  # type: ignore
                 room.game_state.players.remove(player)
 
-                if len([p for p in room.game_state.players if p.piece_type != PieceTypes.BLANK]) == 2:
-                    room.all_players_ready = True
-                else:
-                    room.all_players_ready = False
+                match len([p for p in room.game_state.players if p.piece_type != PieceTypes.BLANK]):
+                    case 2:
+                        room.all_players_ready = True
+                    case 1:
+                        room.all_players_ready = False
+                    case 0:
+                        room.game_state = Game()
 
                 room_json: str = room.to_json()
                 room_dict: dict[str, str | bool | Game] = json.loads(room_json)
@@ -170,7 +173,7 @@ def handle_disconnect(reason):
 def handle_create_room(data: dict):
     room_code: str = str(uuid.uuid4())[:8]
 
-    print(f"Creating room: private? {data['isPrivate']}")
+    print(f"Creating room {data['name']}: private? {data['isPrivate']}")
     rooms[room_code] = Room(
         code=room_code,
         name=data['name'],
@@ -306,12 +309,20 @@ def handle_make_move(data: dict):
     room: Room = rooms[room_code]
     game_state: Game = room.game_state
 
-    if game_state.turn != data['playerPiece']['type']:
-        emit('invalid_move', 'Not your turn!')
+    # if game_state.turn != data['playerPiece']['type']:
+    #     emit('invalid_move', 'Not your turn!')
+    #     return
+
+    validate_move, error_message = game_state.validate_move(player_sid=request.sid, player_piece=data['playerPiece'], target_row=data['row'], target_col=data['col']) # type: ignore
+
+    print(f"Validate move: {validate_move}, Error message: {error_message}")
+
+    if not validate_move:
+        emit('invalid_move', error_message)
         return
 
     # Process the move (update the game state)
-    game_state.make_move(data['playerName'], data['playerPiece'], data['row'], data['col'])
+    game_state.make_move(player_sid=request.sid, player_piece=data['playerPiece'], target_row=data['row'], target_col=data['col']) # type: ignore
 
     # Recalculate valid moves and emit back the new state
     # game.calculate_valid_moves()
@@ -323,7 +334,7 @@ def handle_make_move(data: dict):
         'game_state': game_state_dict
     }
 
-    emit('update_game_state', json.dumps(response_data), to=room_code,broadcast=True)
+    emit('update_game_state', json.dumps(response_data), to=room_code, broadcast=True)
 
 def send_rooms():
     room_list= [{
