@@ -248,16 +248,17 @@ class Game:
 
         dx, dy = abs(target_col - moved_piece.position.x), abs(target_row - moved_piece.position.y)
         is_diagonal_move: bool = dx != 0 and dy != 0
+        is_on_board: bool = (moved_piece.position.x != -1 or moved_piece.position.y != -1)
         current_cell_type: CellTypes = self.board[moved_piece.position.y][moved_piece.position.x].type
         target_cell_type: CellTypes = self.board[target_row][target_col].type
 
         if dx == 0 and dy == 0:
             return False, "Cannot move to the same position!"
 
-        if dx > 1 or dy > 1:
+        if (dx > 1 or dy > 1) and is_on_board:
             return False, "Cannot move more than 1 cell!"
 
-        if is_diagonal_move and not (current_cell_type == CellTypes.ALL_DIRECTIONS or current_cell_type == CellTypes.SPECIAL):
+        if is_diagonal_move and not (current_cell_type == CellTypes.ALL_DIRECTIONS or current_cell_type == CellTypes.SPECIAL) and is_on_board:
             return False, "Cannot move diagonally!"
 
         if target_row < 0 or target_row >= len(self.board) or target_col < 0 or target_col >= len(self.board[0]):
@@ -270,7 +271,7 @@ class Game:
             return False, "Target position is occupied by another piece!"
 
         is_current_cell_special: bool = self.board[moved_piece.position.y][moved_piece.position.x].type == CellTypes.SPECIAL
-        is_piece_on_wings: bool = (moved_piece.position.x == -1 and moved_piece.position.y == -1) or (current_cell_type == CellTypes.WINGS)
+        is_piece_on_wings: bool = not is_on_board or (current_cell_type == CellTypes.WINGS)
 
         print(f"Target cell type: {target_cell_type}")
         print(f"Is target wings: {target_cell_type == CellTypes.WINGS}")
