@@ -373,3 +373,68 @@ class Algorithm1:
     #                 surrounding_uwong += 1
 
     #     return surrounding_uwong
+
+    ####################################################################################################
+
+    # def evaluate(self, node: Board) -> float:
+    #     """
+    #     Evaluate the score of a terminal node for the current player.
+    #     Replace with game-specific evaluation logic.
+    #     """
+    #     # Example placeholder
+    #     return float(random.randint(0, 10))
+
+    # def evaluate(self, board: Board, current_player: PieceTypes) -> float:
+    #     """
+    #     Evaluates the given board state and returns a numerical score.
+    #     Positive values favor MACAN, negative values favor UWONG.
+
+    #     :param board: The current game board state.
+    #     :param current_player: The player making the evaluation (PieceTypes.MACAN or PieceTypes.UWONG).
+    #     :return: A float representing the board's value.
+    #     """
+    #     # Constants for evaluation weights
+    #     MACAN_WEIGHT = 10
+    #     UWONG_WEIGHT = 3
+    #     STRATEGIC_POSITION_WEIGHT = 3
+    #     WINNING_SCORE = math.inf
+    #     LOSING_SCORE = -math.inf
+
+    #     # Count the number of Macan and Uwong pieces
+    #     macan_count = 0
+    #     uwong_count = 0
+    #     macan_moves_available = 0
+
+    #     for row in range(len(board)):
+    #         for col in range(len(board[row])):
+    #             cell: Cell = board[row][col]
+    #             print(f"V - Cell at ({row}, {col}): {cell}")
+
+    #             if cell.piece.type == PieceTypes.MACAN:
+    #                 macan_count += 1
+    #                 # Calculate available moves for Macan
+    #                 macan_moves_available += len(self.get_valid_moves(board, row, col, PieceTypes.MACAN))
+
+    #             elif cell.piece.type == PieceTypes.UWONG:
+    #                 uwong_count += 1
+
+    #     # Check for terminal states
+    #     # 1. Macan wins if all Uwong are captured and in even jumps (handled in gameplay logic, but assume even jumps here)
+    #     if uwong_count == 0:
+    #         print(f"Evaluated score: {WINNING_SCORE if current_player == PieceTypes.MACAN else LOSING_SCORE}")
+    #         return WINNING_SCORE if current_player == PieceTypes.MACAN else LOSING_SCORE
+
+    #     # 2. Uwong wins if Macan cannot move (is trapped)
+    #     if macan_moves_available == 0:
+    #         print(f"Evaluated score: {WINNING_SCORE if current_player == PieceTypes.UWONG else LOSING_SCORE}")
+    #         return WINNING_SCORE if current_player == PieceTypes.UWONG else LOSING_SCORE
+
+    #     # Compute score based on number of pieces and positional value
+    #     score = (
+    #         (macan_count * MACAN_WEIGHT) -
+    #         (uwong_count * UWONG_WEIGHT)
+    #     )
+
+    #     print(f"Evaluated score: {score}")
+    #     # Adjust score based on the current player
+    #     return score if current_player == PieceTypes.MACAN else -score

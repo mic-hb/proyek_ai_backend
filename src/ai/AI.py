@@ -96,7 +96,7 @@ class AI:
             (PieceTypes.MACAN if self.current_player_type == PieceTypes.UWONG else PieceTypes.UWONG)
         )
 
-        if depth == 0:
+        if depth == 0 or self.is_terminal(node):
             return None, None, self.evaluate(node)
 
         best_piece = None
@@ -142,78 +142,36 @@ class AI:
     # Utility functions for game logic
     def is_terminal(self, node: Board) -> bool:
         """
-        Check if the node is a terminal state (e.g., win, loss, draw, or max depth).
-        Replace with game-specific logic.
+        Check if the node is a terminal state.
+        A terminal state occurs when:
+        1. All MACAN pieces are captured (position is -2,-2)
+        2. All UWONG pieces are captured (position is -2,-2)
+
+        Returns:
+            bool: True if the game has ended, False otherwise
         """
-        # Example placeholder
-        # return node.get("is_terminal", False)
-        return random.choice([True, False])
+        print(f"Evaluating terminal state")
+        macan_count = 0
+        uwong_count = 0
 
-    # def evaluate(self, node: Board) -> float:
-    #     """
-    #     Evaluate the score of a terminal node for the current player.
-    #     Replace with game-specific evaluation logic.
-    #     """
-    #     # Example placeholder
-    #     return float(random.randint(0, 10))
+        # Count pieces of each type that are still on the board
+        for row in range(len(node)):
+            for col in range(len(node[row])):
+                piece_type = node[row][col].piece.type
+                if piece_type == PieceTypes.MACAN:
+                    macan_count += 1
+                elif piece_type == PieceTypes.UWONG:
+                    uwong_count += 1
 
-    # def evaluate(self, board: Board, current_player: PieceTypes) -> float:
-    #     """
-    #     Evaluates the given board state and returns a numerical score.
-    #     Positive values favor MACAN, negative values favor UWONG.
+        # Check if either all MACAN or all UWONG pieces are captured
+        if macan_count == 0:  # All MACAN pieces captured
+            print("Terminal state: All MACAN pieces captured")
+            return True
+        elif uwong_count == 0:  # All UWONG pieces captured
+            print("Terminal state: All UWONG pieces captured")
+            return True
 
-    #     :param board: The current game board state.
-    #     :param current_player: The player making the evaluation (PieceTypes.MACAN or PieceTypes.UWONG).
-    #     :return: A float representing the board's value.
-    #     """
-    #     # Constants for evaluation weights
-    #     MACAN_WEIGHT = 10
-    #     UWONG_WEIGHT = 3
-    #     STRATEGIC_POSITION_WEIGHT = 3
-    #     WINNING_SCORE = math.inf
-    #     LOSING_SCORE = -math.inf
-
-    #     # Count the number of Macan and Uwong pieces
-    #     macan_count = 0
-    #     uwong_count = 0
-    #     macan_moves_available = 0
-
-    #     for row in range(len(board)):
-    #         for col in range(len(board[row])):
-    #             cell: Cell = board[row][col]
-    #             print(f"V - Cell at ({row}, {col}): {cell}")
-
-    #             if cell.piece.type == PieceTypes.MACAN:
-    #                 macan_count += 1
-    #                 # Calculate available moves for Macan
-    #                 macan_moves_available += len(self.get_valid_moves(board, row, col, PieceTypes.MACAN))
-
-    #             elif cell.piece.type == PieceTypes.UWONG:
-    #                 uwong_count += 1
-
-    #     # Check for terminal states
-    #     # 1. Macan wins if all Uwong are captured and in even jumps (handled in gameplay logic, but assume even jumps here)
-    #     if uwong_count == 0:
-    #         print(f"Evaluated score: {WINNING_SCORE if current_player == PieceTypes.MACAN else LOSING_SCORE}")
-    #         return WINNING_SCORE if current_player == PieceTypes.MACAN else LOSING_SCORE
-
-    #     # 2. Uwong wins if Macan cannot move (is trapped)
-    #     if macan_moves_available == 0:
-    #         print(f"Evaluated score: {WINNING_SCORE if current_player == PieceTypes.UWONG else LOSING_SCORE}")
-    #         return WINNING_SCORE if current_player == PieceTypes.UWONG else LOSING_SCORE
-
-    #     # Compute score based on number of pieces and positional value
-    #     score = (
-    #         (macan_count * MACAN_WEIGHT) -
-    #         (uwong_count * UWONG_WEIGHT)
-    #     )
-
-    #     print(f"Evaluated score: {score}")
-    #     # Adjust score based on the current player
-    #     return score if current_player == PieceTypes.MACAN else -score
-
-
-    ####################################################################################################
+        return False
 
     def generate_children_with_moves(self, node: Board, current_player: PieceTypes):
         """
