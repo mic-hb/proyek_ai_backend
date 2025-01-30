@@ -232,11 +232,9 @@ class Game:
         player: Player = self.get_player_by_sid(player_sid)
         # Check which piece to move
         moved_piece = None
-        # print(f"Player {player.name}, pieces: {player.pieces}")
         for piece in player.pieces:
             if piece.id == player_piece['id']:
                 moved_piece = piece
-
 
         if moved_piece is None:
             return False, "Piece not found!"
@@ -247,15 +245,18 @@ class Game:
         print(f"Moving piece {moved_piece.id} from {moved_piece.position.x}, {moved_piece.position.y} to {target_col}, {target_row}")
 
         dx, dy = abs(target_col - moved_piece.position.x), abs(target_row - moved_piece.position.y)
+
         is_diagonal_move: bool = dx != 0 and dy != 0
         is_on_board: bool = (moved_piece.position.x != -1 or moved_piece.position.y != -1)
         current_cell_type: CellTypes = self.board[moved_piece.position.y][moved_piece.position.x].type
         target_cell_type: CellTypes = self.board[target_row][target_col].type
 
+        macan_is_capturing: bool = self.validate_macan_capture(moved_piece, target_row, target_col)
+
         if dx == 0 and dy == 0:
             return False, "Cannot move to the same position!"
 
-        if (dx > 1 or dy > 1) and is_on_board:
+        if (dx > 1 or dy > 1) and is_on_board and not macan_is_capturing:
             return False, "Cannot move more than 1 cell!"
 
         if is_diagonal_move and not (current_cell_type == CellTypes.ALL_DIRECTIONS or current_cell_type == CellTypes.SPECIAL) and is_on_board:
@@ -289,4 +290,82 @@ class Game:
                 return False, "Cannot move out of wings!"
 
 
+
         return True, ""
+
+    def validate_macan_capture(self, moved_piece: Piece, target_row: int, target_col: int) -> bool:
+        """
+        Validate a macan capture move on the board.
+
+        A MACAN piece can capture UWONG pieces when:
+        1. The UWONG pieces are aligned in a straight line
+        2. There must be even number of UWONG pieces (2, 4, etc.)
+        3. The first UWONG piece must be adjacent to MACAN
+        4. Movement direction must respect the cell type (ALL_DIRECTIONS or FOUR_DIRECTIONS)
+
+        Returns:
+            bool: True if the capture move is valid, False otherwise
+        """
+        if moved_piece.type != PieceTypes.MACAN:
+            return False
+
+        # Get current position and cell type
+        current_row, current_col = moved_piece.position.y, moved_piece.position.x
+        current_cell_type = self.board[current_row][current_col].type
+
+        # Calculate direction vector
+        dr = target_row - current_row
+        dc = target_col - current_col
+
+        # Validate diagonal movement based on cell type
+        is_diagonal = abs(dr) == abs(dc) and dr != 0
+        if is_diagonal and current_cell_type == CellTypes.FOUR_DIRECTIONS:
+            return False
+
+        # Get unit direction vector
+        if dr != 0:
+            dr = dr // abs(dr)
+        if dc != 0:
+            dc = dc // abs(dc)
+
+        # Count UWONG pieces in the path
+        uwong_count = 0
+        row, col = current_row + dr, current_col + dc
+
+        # Check if first piece is adjacent and is UWONG
+        if not (0 <= row < len(self.board) and 0 <= col < len(self.board[0])):
+            return False
+        if self.board[row][col].piece.type != PieceTypes.UWONG:
+            return False
+
+        # Count consecutive UWONG pieces
+        while row != target_row or col != target_col:
+            if not (0 <= row < len(self.board) and 0 <= col < len(self.board[0])):
+                return False
+
+            current_piece = self.board[row][col].piece.type
+            if current_piece != PieceTypes.UWONG:
+                return False
+
+            uwong_count += 1
+            row += dr
+            col += dc
+
+        # Validate target position
+        if not (0 <= target_row < len(self.board) and 0 <= target_col < len(self.board[0])):
+            return False
+
+        # Check if target cell is occupied
+        if self.board[target_row][target_col].piece.type != PieceTypes.BLANK:
+            return False
+
+        # Validate number of UWONG pieces (must be even)
+        if uwong_count == 0 or uwong_count % 2 != 0:
+            return False
+
+        # Allow capture into wings even if starting point is not SPECIAL
+        target_cell_type = self.board[target_row][target_col].type
+        if target_cell_type == CellTypes.WINGS:
+            return True
+
+        return True
