@@ -74,6 +74,7 @@ class Game:
         # Special space to move to right wing
         self.board[2][6].type = CellTypes.SPECIAL
 
+
     def calculate_valid_moves(self):
         """
         Calculate and update the valid moves for each piece on the board.
