@@ -7,7 +7,7 @@ import json
 
 from src.game.board import Board
 from src.game.player import Player
-from src.game.piece import Piece
+from src.game.piece import Piece, PositionVector
 from src.game.cell import Cell
 from src.game.constants import PieceTypes, CellTypes
 
@@ -30,9 +30,9 @@ class Game:
 
     def _initial_board(self, rows: int, columns: int) -> List[List[Cell]]:
         return [
-            [Cell(piece=Piece(type=PieceTypes.BLANK),
+            [Cell(piece=Piece(type=PieceTypes.BLANK, position=PositionVector(x=col, y=row)),
                   valid_moves=[],  type=CellTypes.ALL_DIRECTIONS)
-             for _ in range(columns)] for _ in range(rows)
+             for col in range(columns)] for row in range(rows)
         ]
 
     def _setup_board(self):
@@ -54,7 +54,7 @@ class Game:
         for i in [0, 4]:
             for j in [0, 1, 7, 8]:
                 self.board[i][j] = Cell(
-                    Piece(type=PieceTypes.INVALID),
+                    piece=Piece(type=PieceTypes.INVALID, position=PositionVector(x=j, y=i)),
                     valid_moves=[],
                     type=CellTypes.INVALID
                 )
@@ -63,7 +63,7 @@ class Game:
         for i in [1, 2, 3]:
             for j in [0, 1, 7, 8]:
                 self.board[i][j] = Cell(
-                    Piece(type=PieceTypes.BLANK),
+                    piece=Piece(type=PieceTypes.BLANK, position=PositionVector(x=j, y=i)),
                     valid_moves=[],
                     type=CellTypes.WINGS
                 )
@@ -76,41 +76,63 @@ class Game:
 
     def calculate_valid_moves(self):
         """
-        Calculate and update the valid moves for each piece on the center board.
-
-        This method iterates through the center board and determines the valid moves
-        for each piece based on its type. There are two types of pieces:
-        - Type 1: Can move in 8 directions (up, down, left, right, and diagonals).
-        - Type 2: Can move in 4 directions (up, down, left, right).
-
-        Additionally, special moves are assigned to specific positions on the board.
-
-        Directions:
-        - directions_8: List of tuples representing 8 possible movement directions.
-        - directions_4: List of tuples representing 4 possible movement directions.
-
-        Special Moves:
-        - The piece at position (2, 0) can move to (2, 1) with a "left" move.
-        - The piece at position (2, 4) can move to (2, 1) with a "right" move.
+        Calculate and update the valid moves for each piece on the board.
+        This method checks all pieces owned by both players and updates their valid_moves.
         """
-        # Directions for movement
-        directions_8 = [(-1, 0), (1, 0), (0, -1), (0, 1),
-                       (-1, -1), (1, 1), (-1, 1), (1, -1)]
-        directions_4 = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        # Clear all valid moves first
+        for row in self.board:
+            for cell in row:
+                cell.valid_moves = []
 
-        # Center board valid moves
-        for row in range(5):
-            for col in range(5):
-                if self.board[row][col].type == CellTypes.ALL_DIRECTIONS:
-                    self.board[row][col].valid_moves = self.get_moves(
-                        row, col, directions_8, self.board)
-                elif self.board[row][col].type == CellTypes.FOUR_DIRECTIONS:
-                    self.board[row][col].valid_moves = self.get_moves(
-                        row, col, directions_4, self.board)
+        # Calculate valid moves for each player's pieces
+        for player in self.players:
+            for piece in player.pieces:
+                # Skip pieces that are captured (-2, -2) or not placed yet (-1, -1)
+                if piece.position.x < 0 or piece.position.y < 0:
+                    continue
 
-        # Special moves for wings
-        self.board[2][0].valid_moves = [(2, 1, "left")]
-        self.board[2][4].valid_moves = [(2, 1, "right")]
+                valid_moves: list[PositionVector] = []
+                current_row, current_col = piece.position.y, piece.position.x
+
+                # Check all possible target positions on the board
+                for target_row in range(len(self.board)):
+                    for target_col in range(len(self.board[0])):
+                        # Create a temporary piece dict for validate_move
+                        temp_piece_dict = {
+                            'id': piece.id,
+                            'type': piece.type,
+                            'position': {'x': piece.position.x, 'y': piece.position.y}
+                        }
+
+                        # Save current turn state
+                        original_turn = self.turn
+                        # Temporarily set turn to piece's type for validation
+                        self.turn = piece.type
+
+                        # Check if move is valid
+                        is_valid, _ = self.validate_move(player.sid, temp_piece_dict, target_row, target_col)
+
+                        # For MACAN pieces, also check capture moves
+                        if piece.type == PieceTypes.MACAN:
+                            is_capture_valid = self.validate_macan_capture(piece, target_row, target_col)
+                            is_valid = is_valid or is_capture_valid
+
+                        # Restore original turn
+                        self.turn = original_turn
+
+                        if is_valid:
+                            # Add to both piece's valid moves and cell's valid moves
+                            move_direction = ""
+                            # Determine wing direction if moving to wings
+                            if self.board[target_row][target_col].type == CellTypes.WINGS:
+                                if target_col <= 1:
+                                    move_direction = "left"
+                                else:
+                                    move_direction = "right"
+
+                            valid_moves.append(PositionVector(x=target_col, y=target_row))
+
+                piece.valid_moves = valid_moves
 
     def get_moves(self, row: int, col: int, directions: List[tuple[int, int]], board: List[List[Cell]]) -> List[tuple[int, int, str]]:
         """
@@ -158,6 +180,8 @@ class Game:
             return
 
         self.move_piece(moved_piece, target_row, target_col)
+
+        self.calculate_valid_moves()
 
         if self.turn == PieceTypes.MACAN:
             self.turn = PieceTypes.UWONG
@@ -211,7 +235,7 @@ class Game:
         """Recalculate the board state based on piece positions."""
         for row in self.board:
             for cell in row:
-                cell.piece = Piece(type=PieceTypes.BLANK)
+                cell.piece = Piece(type=PieceTypes.BLANK, position=PositionVector(x=cell.piece.position.x, y=cell.piece.position.y))
 
         for player in self.players:
             for piece in player.pieces:
@@ -251,14 +275,14 @@ class Game:
                             piece.position.y = -2
 
                 # Clear the cell
-                self.board[row][col].piece = Piece(type=PieceTypes.BLANK)
+                self.board[row][col].piece = Piece(type=PieceTypes.BLANK, position=PositionVector(x=col, y=row))
 
                 # Move to next cell
                 row += dr
                 col += dc
 
         # Move the piece to its new position
-        self.board[current_row][current_col].piece = Piece(type=PieceTypes.BLANK)
+        self.board[current_row][current_col].piece = Piece(type=PieceTypes.BLANK, position=PositionVector(x=current_col, y=current_row))
         moved_piece.position.x = target_col
         moved_piece.position.y = target_row
         self.board[target_row][target_col].piece = moved_piece
@@ -315,14 +339,14 @@ class Game:
         print(f"Is target wings: {target_cell_type == CellTypes.WINGS}")
         print(f"Is current special: {is_current_cell_special}")
 
-        if target_cell_type == CellTypes.WINGS and not is_current_cell_special and not is_piece_on_wings:
+        if target_cell_type == CellTypes.WINGS and not is_current_cell_special and not is_piece_on_wings and not macan_is_capturing:
             return False, "Cannot move to wings!"
 
-        if target_cell_type == CellTypes.WINGS and is_diagonal_move:
+        if target_cell_type == CellTypes.WINGS and is_diagonal_move and not macan_is_capturing:
             return False, "Cannot move diagonally on wings!"
 
 
-        if current_cell_type == CellTypes.WINGS:
+        if current_cell_type == CellTypes.WINGS and not macan_is_capturing:
             if not target_cell_type == CellTypes.SPECIAL and not target_cell_type == CellTypes.WINGS:
                 return False, "Cannot move out of wings!"
 
