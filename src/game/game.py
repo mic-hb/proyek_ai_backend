@@ -183,6 +183,8 @@ class Game:
 
         self.calculate_valid_moves()
 
+        self.check_uwong_capture()
+
         if self.turn == PieceTypes.MACAN:
             self.turn = PieceTypes.UWONG
         else:
@@ -427,4 +429,103 @@ class Game:
         if target_cell_type == CellTypes.WINGS:
             return True
 
-        return True
+        # Only return True if all conditions are met
+        return uwong_count > 0 and uwong_count % 2 == 0
+
+    def check_uwong_capture(self):
+        """
+        Check if any MACAN pieces are captured.
+        A MACAN is captured when:
+        1. It is surrounded by UWONG pieces in all valid directions
+        2. It has no valid moves (including capture moves)
+        3. The MACAN must be on the board (not in -1,-1 or -2,-2)
+        """
+        print("Checking UWONG capture")
+        for player in self.players:
+            for piece in player.pieces:
+                # Skip UWONG pieces and pieces that aren't on board
+                if piece.type != PieceTypes.MACAN or piece.position.x < 0 or piece.position.y < 0:
+                    continue
+
+                current_row, current_col = piece.position.y, piece.position.x
+                current_cell = self.board[current_row][current_col]
+
+                valid_moves: list[PositionVector] = []
+
+                # Check all possible target positions on the board
+                for target_row in range(len(self.board)):
+                    for target_col in range(len(self.board[0])):
+                        # Create a temporary piece dict for validate_move
+                        temp_piece_dict = {
+                            'id': piece.id,
+                            'type': piece.type,
+                            'position': {'x': piece.position.x, 'y': piece.position.y}
+                        }
+
+                        # Save current turn state
+                        original_turn = self.turn
+                        # Temporarily set turn to piece's type for validation
+                        self.turn = piece.type
+
+                        # Check if move is valid
+                        is_valid, _ = self.validate_move(player.sid, temp_piece_dict, target_row, target_col)
+
+                        # For MACAN pieces, also check capture moves
+                        if piece.type == PieceTypes.MACAN:
+                            is_capture_valid = self.validate_macan_capture(piece, target_row, target_col)
+                            is_valid = is_valid or is_capture_valid
+
+                        # Restore original turn
+                        self.turn = original_turn
+
+                        if is_valid:
+                            valid_moves.append(PositionVector(x=target_col, y=target_row))
+
+                # If no valid directions, MACAN is captured
+                if len(valid_moves) == 0:
+                    print(f"MACAN {piece.id} has no valid directions")
+                    # Set captured MACAN position to (-2, -2)
+                    piece.position.x = -2
+                    piece.position.y = -2
+                    # Clear the board cell
+                    self.board[current_row][current_col].piece = Piece(
+                        type=PieceTypes.BLANK,
+                        position=PositionVector(x=current_col, y=current_row)
+                    )
+                    continue
+
+                print(f"MACAN {piece.id} valid directions: {valid_moves}")
+
+                valid_directions = []
+                for move in valid_moves:
+                    valid_directions.append((move.y - current_row, move.x - current_col))
+
+                # Check if surrounded by UWONG pieces in all valid directions
+                is_surrounded = True
+                for dr, dc in valid_directions:
+                    next_row, next_col = current_row + dr, current_col + dc
+
+                    # If next position is out of bounds or invalid, skip this direction
+                    if (next_row < 0 or next_row >= len(self.board) or
+                        next_col < 0 or next_col >= len(self.board[0]) or
+                        self.board[next_row][next_col].type == CellTypes.INVALID):
+                        continue
+
+                    # If there's any non-UWONG piece adjacent in a valid direction, MACAN is not surrounded
+                    if self.board[next_row][next_col].piece.type != PieceTypes.UWONG:
+                        is_surrounded = False
+                        break
+
+                print(f"MACAN {piece.id} is surrounded: {is_surrounded}")
+
+                # If MACAN is surrounded in all valid directions, it's captured
+                if is_surrounded:
+                    print(f"MACAN {piece.id} is captured")
+                    # Set captured MACAN position to (-2, -2)
+                    piece.position.x = -2
+                    piece.position.y = -2
+                    # Clear the board cell
+                    self.board[current_row][current_col].piece = Piece(
+                        type=PieceTypes.BLANK,
+                        position=PositionVector(x=current_col, y=current_row)
+                    )
