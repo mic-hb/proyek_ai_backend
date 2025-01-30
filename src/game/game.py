@@ -220,8 +220,45 @@ class Game:
                 self.board[piece.position.y][piece.position.x].piece = piece
 
     def move_piece(self, moved_piece: Piece, target_row: int, target_col: int):
-        """Move a piece to a new position on the board."""
-        self.board[moved_piece.position.y][moved_piece.position.x].piece = Piece(type=PieceTypes.BLANK)
+        """
+        Move a piece to a new position on the board.
+        If it's a MACAN piece making a capture move, remove captured UWONG pieces.
+        """
+        current_row, current_col = moved_piece.position.y, moved_piece.position.x
+
+        # Check if this is a MACAN capture move
+        if moved_piece.type == PieceTypes.MACAN and self.validate_macan_capture(moved_piece, target_row, target_col):
+            # Calculate direction vector
+            dr = target_row - current_row
+            dc = target_col - current_col
+
+            # Get unit direction vector
+            if dr != 0:
+                dr = dr // abs(dr)
+            if dc != 0:
+                dc = dc // abs(dc)
+
+            # Remove captured UWONG pieces
+            row, col = current_row + dr, current_col + dc
+            while row != target_row or col != target_col:
+                # Find the player who owns this UWONG piece
+                captured_piece = self.board[row][col].piece
+                for player in self.players:
+                    for piece in player.pieces:
+                        if piece.id == captured_piece.id and piece.type == PieceTypes.UWONG:
+                            # Set captured piece position to (-2, -2)
+                            piece.position.x = -2
+                            piece.position.y = -2
+
+                # Clear the cell
+                self.board[row][col].piece = Piece(type=PieceTypes.BLANK)
+
+                # Move to next cell
+                row += dr
+                col += dc
+
+        # Move the piece to its new position
+        self.board[current_row][current_col].piece = Piece(type=PieceTypes.BLANK)
         moved_piece.position.x = target_col
         moved_piece.position.y = target_row
         self.board[target_row][target_col].piece = moved_piece
@@ -288,8 +325,6 @@ class Game:
         if current_cell_type == CellTypes.WINGS:
             if not target_cell_type == CellTypes.SPECIAL and not target_cell_type == CellTypes.WINGS:
                 return False, "Cannot move out of wings!"
-
-
 
         return True, ""
 
