@@ -64,7 +64,7 @@ class AI:
 
         best_piece, best_move, best_score = self.minimax_alpha_beta(self.game_state.board, depth=3, is_maximizing=True, alpha=-math.inf, beta=math.inf)
 
-        print("Best value for the maximizing player:", best_score)
+        print("Best value for the maximizing player:", best_score, "with move", best_move, 'using algorithm', self.algorithm)
 
         if best_piece is None or best_move is None:
             return self.generate_random_move()

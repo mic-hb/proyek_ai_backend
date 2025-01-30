@@ -108,6 +108,8 @@ def parse_move_request(data: dict) -> MoveRequest:
     game_state.players = players
     game_state.turn = data['gameState']['turn']
 
+    print(f"Algorithm: {data['algorithm']}")
+
     return MoveRequest(game_state=game_state, algorithm=data['algorithm'], player_name=player_name)
 
 if __name__ == '__main__':
