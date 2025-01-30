@@ -10,6 +10,7 @@ from src.game.game import Game
 @dataclass
 class MoveRequest:
     game_state: Game
+    algorithm: int
     player_name: str = field(default="")
 
     def __to_json__(self) -> str:

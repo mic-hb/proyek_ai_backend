@@ -15,11 +15,13 @@ class AI:
     player_name: str
     current_player_type: PieceTypes
     game_state: Game
+    algorithm: int
 
-    def __init__(self, game_state, player_name, current_player_type):
+    def __init__(self, game_state, player_name, current_player_type, algorithm):
         self.game_state = game_state
         self.player_name = player_name
         self.current_player_type = current_player_type
+        self.algorithm = algorithm
 
     def generate_random_move(self) -> SuggestedMove:
         """ Generate a random move. """
@@ -52,19 +54,6 @@ class AI:
 
     def generate_ai_move(self) -> SuggestedMove:
         """ Generate a move using the minimax algorithm. """
-        # Example tree representation
-        # tree = {
-        #     "is_terminal": False,
-        #     "children": [
-        #         {"is_terminal": True, "value": 3},
-        #         {"is_terminal": False, "children": [
-        #             {"is_terminal": True, "value": 5},
-        #             {"is_terminal": True, "value": 6}
-        #         ]},
-        #         {"is_terminal": True, "value": 9}
-        #     ]
-        # }
-
         # 1. Cek semua arah dari state sekarang + tergantung macan/uwong
 
         # 2. Cek dari semua arah, mana yang possible move
@@ -106,7 +95,7 @@ class AI:
         )
 
         if depth == 0:
-            return None, None, self.evaluate(node)
+            return None, None, self.do_evaluation(node)
 
         best_piece = None
         best_move = None
@@ -135,6 +124,18 @@ class AI:
                 if beta <= alpha:
                     break  # Alpha cut-off
             return best_piece, best_move, min_eval
+
+    def do_evaluation(self, node: Board) -> float:
+        """
+        Evaluate the score of a terminal node for the current player.
+        Replace with game-specific evaluation logic.
+        """
+        if self.algorithm == 1:
+            return self.evaluate_1(node)
+        elif self.algorithm == 2:
+            return self.evaluate_2(node)
+        else:
+            return self.evaluate_1(node)
 
     # Utility functions for game logic
     def is_terminal(self, node: Board) -> bool:
@@ -209,7 +210,7 @@ class AI:
     #     # Adjust score based on the current player
     #     return score if current_player == PieceTypes.MACAN else -score
 
-    def evaluate(self, node: Board) -> float:
+    def evaluate_1(self, node: Board) -> float:
         """
         Fungsi evaluasi untuk menentukan skor permainan berdasarkan posisi pion macan dan uwong.
         :param posisi: dictionary yang berisi lokasi pion macan dan uwong di papan.
@@ -566,6 +567,173 @@ class AI:
 
     #     return surrounding_uwong
 
+    #############################################################################
+
+    def evaluate_2(self, node: Board) -> float:
+        """
+        Fungsi evaluasi untuk menentukan skor permainan berdasarkan posisi pion macan dan uwong.
+        :param posisi: dictionary yang berisi lokasi pion macan dan uwong di papan.
+                    contoh: {"macan": [(x1, y1), (x2, y2)], "uwong": [(x3, y3), (x4, y4), ...]}
+        :return: skor evaluasi (positif jika menguntungkan macan, negatif jika menguntungkan uwong)
+        """
+        nilai_macan = 0
+        nilai_uwong = 0
+
+        posisi = {"macan": [], "uwong": []}
+        for row in range(len(node)):
+            for col in range(len(node[row])):
+                cell = node[row][col]
+                if cell.piece.type == PieceTypes.MACAN:
+                    posisi["macan"].append((row, col))
+                elif cell.piece.type == PieceTypes.UWONG:
+                    posisi["uwong"].append((row, col))
+
+        # Macan: Evaluasi langkah valid
+        for macan in posisi['macan']:
+            langkah_valid = self.get_valid_moves_for_pion_2(posisi, macan)
+            nilai_macan += len(langkah_valid) * 5
+
+            # Ancaman pengepungan
+            pion_di_sekitar = self.get_pion_di_sekitar(posisi, macan, "uwong")
+            nilai_macan -= len(pion_di_sekitar) * 10
+
+            # Peluang untuk melompat
+            garis_genap = self.get_garis_genap(posisi, macan, "uwong")
+            nilai_macan += len(garis_genap) * 15
+
+            # Penalti jika pola ganjil di garis lurus
+            garis_ganjil = self.get_garis_ganjil(posisi, macan, "uwong")
+            nilai_macan -= len(garis_ganjil) * 10
+
+        # Uwong: Evaluasi langkah valid dan pola
+        for uwong in posisi['uwong']:
+            langkah_valid = self.get_valid_moves_for_pion_2(posisi, uwong)
+            nilai_uwong += len(langkah_valid) * 5
+
+            # Bonus untuk pola ganjil
+            garis_ganjil = self.get_garis_ganjil(posisi, uwong, "uwong")
+            nilai_uwong += len(garis_ganjil) * 15
+
+            # Penalti untuk pola genap
+            garis_genap = self.get_garis_genap(posisi, uwong, "uwong")
+            nilai_uwong -= len(garis_genap) * 10
+
+            # Penalti untuk pion terisolasi
+            pion_di_sekitar = self.get_pion_di_sekitar(posisi, uwong, "uwong")
+            if len(pion_di_sekitar) == 0:
+                nilai_uwong -= 10
+
+        # Uwong: Evaluasi blokade
+        for macan in posisi['macan']:
+            langkah_valid = self.get_valid_moves_for_pion_2(posisi, macan)
+            blokir = len([move for move in langkah_valid if move in posisi['uwong']])
+            nilai_uwong += blokir * 10
+
+        # Evaluasi kemenangan
+        if all(len(self.get_valid_moves_for_pion_2(posisi, macan)) == 0 for macan in posisi['macan']):
+            # Uwong menang
+            return -1000
+        if all(len(self.get_valid_moves_for_pion_2(posisi, uwong)) == 0 for uwong in posisi['uwong']):
+            # Macan menang
+            return 1000
+
+        # Evaluasi total (nilai macan - nilai uwong)
+        return nilai_macan - nilai_uwong
+
+
+    def get_valid_moves_for_pion_2(self, posisi, pion):
+        """
+        Mengembalikan daftar langkah valid untuk pion tertentu.
+        :param posisi: dictionary yang berisi lokasi pion macan dan uwong di papan.
+        :param pion: tuple (x, y) posisi pion yang sedang dievaluasi.
+        :return: list langkah valid (x, y).
+        """
+        x, y = pion
+        langkah = [
+            (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1),  # Vertikal & Horizontal
+            (x - 1, y - 1), (x - 1, y + 1), (x + 1, y - 1), (x + 1, y + 1)  # Diagonal
+        ]
+        # Filter langkah yang berada di dalam papan dan tidak ada pion lain
+        langkah_valid = [
+            (lx, ly) for lx, ly in langkah
+            if (lx, ly) not in posisi['macan'] and (lx, ly) not in posisi['uwong'] and 0 <= lx < 8 and 0 <= ly < 8
+        ]
+        return langkah_valid
+
+
+    def get_pion_di_sekitar(self, posisi, pion, tipe):
+        """
+        Mengembalikan daftar pion di sekitar pion tertentu.
+        :param posisi: dictionary yang berisi lokasi pion macan dan uwong di papan.
+        :param pion: tuple (x, y) posisi pion yang sedang dievaluasi.
+        :param tipe: tipe pion yang ingin dicari ('macan' atau 'uwong').
+        :return: list pion di sekitar.
+        """
+        x, y = pion
+        sekitar = [
+            (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1),
+            (x - 1, y - 1), (x - 1, y + 1), (x + 1, y - 1), (x + 1, y + 1)
+        ]
+        pion_di_sekitar = [p for p in sekitar if p in posisi[tipe]]
+        return pion_di_sekitar
+
+
+    def get_garis_genap(self, posisi, pion, tipe):
+        """
+        Mengembalikan daftar garis lurus dengan pion jumlah genap.
+        :param posisi: dictionary yang berisi lokasi pion macan dan uwong di papan.
+        :param pion: tuple (x, y) posisi pion yang sedang dievaluasi.
+        :param tipe: tipe pion yang ingin dicari ('macan' atau 'uwong').
+        :return: list garis (daftar pion dalam 1 garis).
+        """
+        x, y = pion
+        arah = [
+            (1, 0), (-1, 0), (0, 1), (0, -1),  # Vertikal & Horizontal
+            (1, 1), (-1, -1), (1, -1), (-1, 1)  # Diagonal
+        ]
+        garis_genap = []
+
+        for dx, dy in arah:
+            garis = []
+            nx, ny = x + dx, y + dy
+            while 0 <= nx < 8 and 0 <= ny < 8 and (nx, ny) in posisi[tipe]:
+                garis.append((nx, ny))
+                nx += dx
+                ny += dy
+            if len(garis) > 0 and len(garis) % 2 == 0:  # Hanya ambil jika jumlahnya genap
+                garis_genap.append(garis)
+
+        return garis_genap
+
+
+    def get_garis_ganjil(self, posisi, pion, tipe):
+        """
+        Mengembalikan daftar garis lurus dengan pion jumlah ganjil.
+        :param posisi: dictionary yang berisi lokasi pion macan dan uwong di papan.
+        :param pion: tuple (x, y) posisi pion yang sedang dievaluasi.
+        :param tipe: tipe pion yang ingin dicari ('macan' atau 'uwong').
+        :return: list garis (daftar pion dalam 1 garis).
+        """
+        x, y = pion
+        arah = [
+            (1, 0), (-1, 0), (0, 1), (0, -1),  # Vertikal & Horizontal
+            (1, 1), (-1, -1), (1, -1), (-1, 1)  # Diagonal
+        ]
+        garis_ganjil = []
+
+        for dx, dy in arah:
+            garis = []
+            nx, ny = x + dx, y + dy
+            while 0 <= nx < 8 and 0 <= ny < 8 and (nx, ny) in posisi[tipe]:
+                garis.append((nx, ny))
+                nx += dx
+                ny += dy
+            if len(garis) > 0 and len(garis) % 2 != 0:  # Hanya ambil jika jumlahnya ganjil
+                garis_ganjil.append(garis)
+
+        return garis_ganjil
+
+
     ####################################################################################################
 
     def generate_children_with_moves(self, node: Board, current_player: PieceTypes):
@@ -706,7 +874,7 @@ def generate_suggested_move(move_request: MoveRequest) -> SuggestedMove:
         The suggested move.
     """
 
-    ai = AI(game_state=move_request.game_state, player_name=move_request.player_name, current_player_type=move_request.game_state.turn)
+    ai = AI(game_state=move_request.game_state, player_name=move_request.player_name, current_player_type=move_request.game_state.turn, algorithm=move_request.algorithm)
 
     suggested_move: SuggestedMove = ai.generate_ai_move()
     # suggested_move: SuggestedMove = ai.generate_random_move()

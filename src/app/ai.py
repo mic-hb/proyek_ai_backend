@@ -108,7 +108,7 @@ def parse_move_request(data: dict) -> MoveRequest:
     game_state.players = players
     game_state.turn = data['gameState']['turn']
 
-    return MoveRequest(game_state, player_name)
+    return MoveRequest(game_state=game_state, algorithm=data['algorithm'], player_name=player_name)
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000)
